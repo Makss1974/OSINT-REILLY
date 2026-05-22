@@ -1,0 +1,37 @@
+{
+  "project_name": "OSINT-REILLY",
+  "version": "1.1.0-PLANNING",
+  "block_1_planning_logic": {
+    "step_1_relevance_filter": {
+      "allowed_domains": ["public_web", "news_outlets", "social_media_comments", "state_registers", "job_boards", "tender_platforms"],
+      "banned_domains": ["private_medical_records", "classified_state_secrets", "offline_physical_archives"],
+      "safety_guardrails": ["no_illegal_activities", "no_malware_coordination"]
+    },
+    "step_2_domain_classification": [
+      "general_monitoring",
+      "economic_research",
+      "socio_political_analysis",
+      "scientific_tech_scouting",
+      "military_and_security_threats",
+      "ecology_and_life_conditions"
+    ],
+    "step_3_search_type_mapping": {
+      "statistical_quantitative": {
+        "target_data": "tables, financial_reports, customs_tariffs, supply_volumes",
+        "bright_data_tool": "Web_Scraper_API"
+      },
+      "semantic_discursive": {
+        "target_data": "press_articles, baseline_narratives, political_speech",
+        "bright_data_tool": "SERP_API"
+      },
+      "social_listening_local": {
+        "target_data": "geo_targeted_comments, local_forums, community_chats",
+        "bright_data_tool": "Scraping_Browser"
+      },
+      "infrastructure_spatial": {
+        "target_data": "state_tenders, corporate_vacancies, logistics_nodes",
+        "bright_data_tool": "Web_Unlocker"
+      }
+    }
+  }
+}

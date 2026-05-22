@@ -1,0 +1,6 @@
+# OSINT-REILLY | Project Dependencies
+# Target Directory: /home/ubuntu/IT-PROJECTS/00.Wibe-coding_projects/Wibe_Commander/
+# Line Length Limit: 100 characters
+
+openai>=1.50.0
+python-dotenv>=1.0.0
