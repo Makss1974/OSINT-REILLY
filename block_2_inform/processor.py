@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 OSINT-REILLY | BLOCK 2 — INFORM PROCESSOR (Головний диспетчер цеху збору)
-Оркеструє проходження тасок через 5 рівнів глибини, викликаючи реальні бойові колектори.
-Path: /home/ubuntu/IT-PROJECTS/REILLY/block_2_inform/processor.py
+Path: block_2_inform/processor.py
+Line Length Limit: 100 characters
+
+Orchestrates data pipeline through 5 levels of BMW matrix. Integrates StorageManager.
 """
 
-import json
 import logging
 import os
 import sys
@@ -17,6 +18,7 @@ from typing import Dict, Any, List
 # Налаштування відносних імпортів для кореня проекту
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from core_intelligence.router import ReillyLlmRouter
+from core_intelligence.data_storage.storage_manager import StorageManager
 
 # Локальні імпорти з підпапки бойових колекторів data_collection/
 from .data_collection.brightdata_client import BrightDataClient
@@ -24,6 +26,7 @@ from .data_collection.infra_collector import InfraCollector
 from .data_collection.semantic_collector import SemanticCollector
 
 logger = logging.getLogger(__name__)
+
 
 class DataLevel(str, Enum):
     """5 рівнів глибини збору інформації відповідно до нашої Концепції BMW."""
@@ -33,8 +36,10 @@ class DataLevel(str, Enum):
     CLOSED      = "L4_CLOSED"         # Рівень 4: Штурм сирої інфраструктури (HTML)
     HUMINT      = "L5_HUMINT"         # Рівень 5: Шар ШІ-експертизи та оцінки ризиків
 
+
 class InformPackage:
     """Підсумковий пакет зібраних даних, який передається далі в Блок 4 (Аналітика)."""
+    
     def __init__(self, query_id: str, raw_query: str):
         self.query_id = query_id
         self.raw_query = raw_query
@@ -52,13 +57,16 @@ class InformPackage:
             "levels_payload": self.levels_payload
         }
 
+
 class Block2InformProcessor:
     """
     Головний процесор Блоку 2. Проводить ActionProgram через 5 рівнів глибини 
-    та інтегрує бойові колектори в єдиний інформаційний пакет.
+    та автоматично реєструє зібрані масиви через інфраструктурний StorageManager.
     """
-    def __init__(self, router: ReillyLlmRouter = None):
+    
+    def __init__(self, router: ReillyLlmRouter = None, storage_mgr: StorageManager = None):
         self.router = router or ReillyLlmRouter()
+        self.storage = storage_mgr or StorageManager()
         self.bd_client = BrightDataClient()
         
         # Ініціалізація бойових колекторів з передачею шлюзу Bright Data
@@ -67,8 +75,7 @@ class Block2InformProcessor:
 
     def process(self, action_program: Any) -> InformPackage:
         """
-        Головний конвеєрний метод обробки.
-        Послідовно будує шари L1-L5 інформаційного пакета.
+        Головний конвеєрний метод обробки. Послідовно будує шари L1-L5.
         """
         logger.info("=" * 60)
         logger.info("[Processor] ⚡ БЛОК 2 — INFORM PROCESSOR | Запуск конвеєра збору...")
@@ -86,18 +93,24 @@ class Block2InformProcessor:
             "tasks_manifest": [t.task_id for t in action_program.search_tasks]
         }
 
-        # ── Рівень L3: OPEN (Запуск подвійного семантичного контуру) ───────────
+        # ── Рівень L3: OPEN (Семантика + Автоматичне збереження на диск) ─────
         logger.info("[Processor] 🧠 Формування шару Рівня 3 [L3_OPEN]...")
         semantic_results = self.semantic_collector.collect_semantic_pipeline(action_program)
         package.levels_payload[DataLevel.OPEN.value] = semantic_results
+        
+        # Фізично консервуємо семантичний JSON-серп у Блок №3
+        self.storage.save_payload("semantic", action_program.query_id, semantic_results)
 
-        # ── Рівень L4: CLOSED (Штурм прямої інфраструктури — Демон Максвелла) ──
+        # ── Рівень L4: CLOSED (Інфраструктура HTML + Автоматичне збереження) ──
         logger.info("[Processor] ⚡ Формування шару Рівня 4 [L4_CLOSED]...")
         infra_results = self.infra_collector.collect_infra_pipeline(action_program)
         package.levels_payload[DataLevel.CLOSED.value] = infra_results
+        
+        # Фізично пишемо сирий HTML інфраструктури на диск через Блок №3
+        for task_id, html_dump in infra_results.get("raw_dumps", {}).items():
+            self.storage.save_payload("infra", f"{action_program.query_id}_{task_id}", html_dump)
 
         # ── Рівень L2: EXTERNAL (Виділення лінгвістичного стресу) ──────────────
-        # Збираємо дані з тасок типу LINGUISTIC_STRESS, які осіли на Рівні 3
         logger.info("[Processor] 📊 Формування шару Рівня 2 [L2_EXTERNAL]...")
         stress_signals = []
         for block in semantic_results.get("semantic_data", []):
@@ -109,11 +122,10 @@ class Block2InformProcessor:
         }
 
         # ── Рівень L5: HUMINT (Шар ШІ-оцінки ризиків та викривлень) ───────────
-        logger.info("[Processor] 🕵️ Формування аналітичного шару Рівня 5 [L5_HUMINT]...")
+        logger.info("[Processor] 🕵️ Формування шару Рівня 5 [L5_HUMINT]...")
         distortion_risk = "LOW"
         verification_available = "HIGH"
         
-        # Якщо Демон Максвелла виявив забагато гарячих сигналів, фіксуємо ризик дезінформації
         if infra_results.get("statistics", {}).get("hot_signals", 0) > 2:
             distortion_risk = "MEDIUM_DUE_TO_DYNAMICS"
             
@@ -124,15 +136,18 @@ class Block2InformProcessor:
         }
 
         # 🧮 Розрахунок підсумкової фінальної статистики збору
-        total_items = len(stress_signals) + len(infra_results.get("hot_signals_data", [])) + len(semantic_results.get("semantic_data", []))
+        total_items = (len(stress_signals) + 
+                       len(infra_results.get("hot_signals_data", [])) + 
+                       len(semantic_results.get("semantic_data", [])))
+                       
         package.collection_stats = {
             "status": "COMPLETE",
             "total_items_collected": total_items,
             "distortion_risk": distortion_risk,
             "verification_available": verification_available,
             "cache_paths": {
-                "infra": "/home/ubuntu/IT-PROJECTS/REILLY/state/infra_cache",
-                "semantic": "/home/ubuntu/IT-PROJECTS/REILLY/state/semantic_cache"
+                "infra": self.storage.categories["infra"],
+                "semantic": self.storage.categories["semantic"]
             }
         }
 
