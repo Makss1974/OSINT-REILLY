@@ -1,132 +1,97 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-OSINT-REILLY: Core Orchestrator (Blocks #0 and #1 Integrated)
-Target Directory: /home/ubuntu/IT-PROJECTS/00.Wibe-coding_projects/Wibe_Commander/
-Line Length Limit: 100 characters
+OSINT-REILLY | MAIN — ГОЛОВНИЙ ОРКЕСТРАТОР СИСТЕМИ (БЛОК 0)
+Path: /home/ubuntu/IT-PROJECTS/REILLY/main.py
 """
 
 import os
 import sys
-import argparse
+
+# КРОК 1: Залізобетонно реєструємо корінь ДО того, як завантажиться хоч один наш модуль
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
+import json
 import logging
+import time
+import argparse  # Повернуто в контур системи
 from datetime import datetime
 
-# Імпорт нашого автономного планувальника з Блоку #1
-try:
-    from core_intelligence.planner import ReillyPlanner
-except ImportError:
-    # Захисний фолбек, якщо запуск відбувається до створення окремого модуля
-    ReillyPlanner = None
+# КРОК 2: Тепер спокійно імпортуємо оркестратори
+from block_1_task.orchestrator import run_block_1_task
+from block_2_inform.processor import Block2InformProcessor
+from block_4_analytics.analytics_engine import Block4AnalyticsEngine
+from block_5_report.report_builder import Block5ReportBuilder, ReportFormat
 
-# Налаштування логування відповідно до ТЗ (індивідуальні логі для ботів у кукоін-контурі)
-LOG_DIR = "/home/ubuntu/kucoin_prod/bots/logs/"
+# Налаштування логів
+LOG_DIR = os.path.join(CURRENT_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s | %(levelname)-8s | [MAIN_CORE] %(message)s",
+    datefmt="%H:%M:%S",
     handlers=[
-        logging.FileHandler(os.path.join(LOG_DIR, "reilly_orchestrator.log"), encoding="utf-8"),
+        logging.FileHandler(os.path.join(LOG_DIR, "reilly_core.log"), encoding="utf-8"),
         logging.StreamHandler(sys.stdout)
     ]
 )
+logger = logging.getLogger(__name__)
 
-def parse_arguments():
-    """Парсинг вхідних параметрів для визначення профілю роботи системи."""
-    parser = argparse.ArgumentParser(description="OSINT-REILLY: Autonomous Intelligence Engine")
-    parser.add_argument(
-        "--mode", 
-        choices=["hackathon", "full-tank", "private"], 
-        required=True,
-        help="Execution profile: hackathon (SaaS), full-tank (Defense), private (Personal Admin)"
-    )
-    parser.add_argument(
-        "--target", 
-        type=str, 
-        default="General_Pulse",
-        help="Target object or geography for research (e.g., Kursk, Saratov, Fuel_Market)"
-    )
-    return parser.parse_args()
+DEFAULT_QUERY = (
+    "Проаналізуй стан оборонної промисловості Росії у 2024 році: "
+    "виробничі потужності заводів, динаміку вакансій на ВПК-підприємствах, "
+    "тендери на постачання металу та логістику залізничних маршрутів до заводів."
+)
 
-def initialize_environment(mode):
-    """Перевірка та ініціалізація структури папок та конфігів."""
-    logging.info("Initializing REILLY Environment in [%s] mode...", mode.upper())
-    
-    # Перевірка наявності технічного опису архітектури
-    config_path = "./docs/architecture.json"
-    if not os.path.exists(config_path):
-        logging.error("Critical error: architecture.json not found at %s", config_path)
-        sys.exit(1)
-        
-    logging.info("Environment successfully verified. Core system stable.")
+def execute_reilly_engine(query: str, mode: str = "hackathon") -> str:
+    start_time = time.time()
+    logger.info("=" * 70)
+    logger.info("🛡️  OSINT-REILLY ENGINE CORE v4.0 | ЗАПУСК ГОЛОВНОГО КОНВЕЄРА")
+    logger.info("=" * 70)
 
-def run_analytical_pipelines(mode, target):
-    """
-    БЛОК #1: Декомпозиція, фільтрація та запуск ліній аналітики.
-    """
-    logging.info("Sending target string to Block #1 (Planner)...")
-    
-    # Формуємо сирий запит на основі вхідної цілі
-    raw_query = f"Глибокий аналіз об'єкта та інфраструктури: {target}"
-    
-    # Ініціалізація або емуляція Планувальника
-    if ReillyPlanner:
-        planner = ReillyPlanner()
-        plan = planner.generate_action_plan(raw_query)
-        
-        # Етап 1.1: Перевірка фільтра "Субмарини"
-        if plan["status"] == "FAILED":
-            logging.error("Task ABORTED by Planner Filter: %s", plan["error"])
-            sys.exit(1)
-            
-        logging.info("Task APPROVED by Submarine Filter.")
-        logging.info("Assigned Domains (Etap 1.2): %s", plan["assigned_domains"])
-        logging.info("Bright Data Blueprint (Etap 1.3): %s", plan["bright_data_execution_plan"])
-    else:
-        logging.warning("ReillyPlanner module not detected. Running on default orchestrator logic.")
-        plan = {"assigned_domains": ["general_monitoring"]}
+    action_program = run_block_1_task(query, mode=mode)
 
-    # Запуск 5 бойових ліній динамічного дослідження
-    lines = [
-        "War & Security Contour",
-        "Shadow Economy & Logistics",
-        "Social Tectonic Shifts",
-        "Tech & Resource Audit",
-        "Markov Probabilistic Forecasts"
-    ]
-    
-    for idx, line in enumerate(lines, 1):
-        logging.info("Activating Line %d/%d: %s", idx, len(lines), line)
-        # Тут буде послідовний виклик суб-агентів Ради Директорів (Ґрін, Джервіс, Ґолдратт)
-        
-    # Диференціація виводу результатів відповідно до комерційного профілю
-    if mode == "hackathon":
-        logging.info("Launching Streamlit GUI Platform on port 8501...")
-        # Майбутній виклик ui/app.py для демонстрації журі
-    elif mode == "full-tank":
-        # Запис у trades_history.lsonl згідно з правилами збереження аналітики для ботів
-        history_path = "/home/ubuntu/KUCOIN_PROD/bots/bot_1/state/trades_history.lsonl"
-        logging.info("Analytical objects successfully written to %s", history_path)
-    elif mode == "private":
-        # Вивід у папку приватних звітів
-        report_dir = "/home/ubuntu/01.KUCOIN_PROD/direct/analysis/reports"
-        logging.info("Silent delivery finished. Reports placed in %s", report_dir)
+    if hasattr(action_program, "is_rejected") and action_program.is_rejected:
+        logger.warning("[MAIN] ⚠️ Конвеєр екстрено зупинено Блоком 1: %s", action_program.rejection_reason)
+        return "CONVEYOR_REJECTED"
 
-def main():
-    args = parse_arguments()
-    initialize_environment(args.mode)
-    
-    start_time = datetime.now()
-    logging.info("=== REILLY ENGINE START AT %s ===", start_time.strftime("%Y-%m-%d %H:%M:%S"))
-    
-    try:
-        run_analytical_pipelines(args.mode, args.target)
-    except Exception as e:
-        logging.critical("Fatal failure in orchestrator loop: %s", str(e), exc_info=True)
-        sys.exit(1)
-        
-    logging.info("=== REILLY ENGINE FINISHED SUCCESSFULLY (Execution time: %s) ===", 
-                 str(datetime.now() - start_time))
+    inform_processor = Block2InformProcessor()
+    inform_package = inform_processor.process(action_program)
+
+    analytics_engine = Block4AnalyticsEngine()
+    analytics_result = analytics_engine.analyze(inform_package)
+
+    report_builder = Block5ReportBuilder()
+    generated_report = report_builder.build(analytics_result)
+
+    output_dir_map = {
+        "hackathon": os.path.join(CURRENT_DIR, "state", "reports"),
+        "full-tank": os.path.join(CURRENT_DIR, "state", "reports", "defense"),
+        "private":   os.path.join(CURRENT_DIR, "state", "reports", "private")
+    }
+    target_dir = output_dir_map.get(mode, os.path.join(CURRENT_DIR, "state", "reports"))
+
+    report_builder.save_report_to_disk(generated_report, ReportFormat.JSON, target_dir)
+    report_builder.save_report_to_disk(generated_report, ReportFormat.HTML, target_dir)
+    final_md_path = report_builder.save_report_to_disk(generated_report, ReportFormat.MARKDOWN, target_dir)
+
+    elapsed_time = time.time() - start_time
+    logger.info("=" * 70)
+    logger.info("✅ OSINT-REILLY ENGINE PIPELINE COMPLETE SUCCESS")
+    logger.info("🔑 ID Запиту: %s | Час обробки: %.2f сек", generated_report.query_id, elapsed_time)
+    logger.info("=" * 70)
+
+    return final_md_path
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="OSINT-REILLY Engine Main Orchestrator")
+    parser.add_argument("query", nargs="?", default=DEFAULT_QUERY, help="Аналітичний запит")
+    parser.add_argument("--mode", choices=["hackathon", "full-tank", "private"], default="hackathon")
+    args = parser.parse_args()
+    execute_reilly_engine(args.query, args.mode)
 
 if __name__ == "__main__":
     main()

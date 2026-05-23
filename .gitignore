@@ -1,0 +1,16 @@
+# Системні ключі та паролі
+.env
+kucoin_key.env
+*.env
+
+# Логи та тимчасові файли
+logs/
+*.log
+__pycache__/
+*.pyc
+
+# Кеш збору даних (сирі гігабайти HTML/JSON)
+state/cache/
+state/infra_cache/
+state/semantic_cache/
+state/reports/

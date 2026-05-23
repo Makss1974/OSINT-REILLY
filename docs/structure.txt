@@ -1,0 +1,36 @@
+/home/ubuntu/IT-PROJECTS/REILLY/
+├── main.py                     # Глобальний запуск (Block 0)
+├── models.py                   # Спільні структури даних (ActionProgram, інше)
+│
+├── block_1/                    # 📦 ДИРЕКТОРІЯ БЛОКУ 1 — TASK (Цілі і План)
+│   ├── __init__.py
+│   ├── orchestrator.py         # Це твій колишній block_1_task.py
+│   ├── task_validator.py       # Етап 1.1: Субмарина
+│   ├── domain_classifier.py    # Етап 1.2: Класифікація доменів
+│   ├── search_type_mapper.py   # Етап 1.3: НАШ ДВОЕШЕЛОННИЙ МАПУВАЛЬНИК
+│   ├── action_program_builder.py # Етап 1.4: Збірка програми дій
+│   └── devils_advocate.py      # Контур внутрішньої рефлексії / критики
+│
+├── block_2/                    # 📦 ДИРЕКТОРІЯ БЛОКУ 2 — INFORM (Збір даних)
+│   ├── __init__.py
+│   ├── inform_processor.py     # Головний збирач (колишній block_2_inform_processor.py)
+│   └── data_collection/        # Твої бойові низькорівневі інструменти
+│       ├── brightdata_client.py # Шлюз до Bright Data API
+│       ├── infra_collector.py   # Демон Максвелла (Штурм HTML)
+│       └── semantic_collector.py # Контур Dual-sweep проти упередженості
+│
+├── block_3/                    # 📦 ДИРЕКТОРІЯ БЛОКУ 3 — ACCESS (Проксі-камуфляж)
+│   ├── __init__.py
+│   └── access_guardian.py      # Трирівневий каскад пулів проксі
+│
+├── block_4/                    # 📦 ДИРЕКТОРІЯ БЛОКУ 4 — ANALYTICS (Аналітика)
+│   ├── __init__.py
+│   └── analytics_engine.py     # 5 шарів аналізу (Ґрін, Джервіс, Ґолдратт...)
+│
+├── block_5/                    # 📦 ДИРЕКТОРІЯ БЛОКУ 5 — REPORT (Звіти)
+│   ├── __init__.py
+│   └── report_builder.py       # Генератор JSON / Markdown / HTML
+│
+├── ui/                         # Веб-інтерфейс системи
+│   └── app.py                  # Streamlit інтерфейс
+└── state/                      # Кеш, логічні логи (.lsonl) та репорти
