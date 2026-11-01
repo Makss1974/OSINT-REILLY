@@ -4,7 +4,7 @@ summary of already computed results. The numbers never come from the LLM."""
 import json
 import logging
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 from . import config
 from .http import FetchError, get_json, post_json
@@ -17,6 +17,34 @@ _models: List[str] = []
 
 def enabled() -> bool:
     return bool(config.OPENROUTER_TOKEN)
+
+
+# offered in Settings; "" = rotate free models. Any other OpenRouter id can be typed in.
+RECOMMENDED = [
+    "",
+    "deepseek/deepseek-v4.1-flash",
+    "qwen/qwen3.8-flash",
+    "z-ai/glm-5.3-flash",
+    "minimax/minimax-m3.1-flash",
+    "qwen/qwen3.7-plus",
+    "deepseek/deepseek-v4-pro",
+    "qwen/qwen3.8-max-0902",
+    "moonshotai/kimi-k3.1-pro",
+]
+# one agent task: plan + gap review + analysis
+TASK_TOKENS = (10_000, 3_000)
+
+
+def price(model: str) -> Optional[Tuple[float, float, float]]:
+    """(USD per 1M input, per 1M output, USD per agent task) from OpenRouter, None if unknown."""
+    if not model:
+        return 0.0, 0.0, 0.0
+    for m in get_json(f"{API}/models", ttl=86400).get("data", []):
+        if m.get("id") == model:
+            p = m.get("pricing", {})
+            pin, pout = float(p.get("prompt", 0)) * 1e6, float(p.get("completion", 0)) * 1e6
+            return pin, pout, (pin * TASK_TOKENS[0] + pout * TASK_TOKENS[1]) / 1e6
+    return None
 
 
 def _candidates() -> List[str]:

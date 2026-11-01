@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from urllib.parse import urlparse
 
-from . import config, profiles
+from . import config, llm, profiles
 from .collectors import rss
 from .http import get_text
 from .i18n import LANG_NAMES, LANGS
@@ -32,13 +32,46 @@ def _general(app, win, parent) -> ttk.Frame:
     key = tk.StringVar(value=config.OPENROUTER_TOKEN)
     model = tk.StringVar(value=config.OPENROUTER_MODEL)
     contact = tk.StringVar(value=config.CONTACT)
+    models = ttk.Combobox(f, textvariable=model, values=llm.RECOMMENDED, width=58)
+    cost = ttk.Label(f, text="", foreground="#667", wraplength=560, justify="left")
     rows = [(t("language"), lang),
             (t("api_key"), ttk.Entry(f, textvariable=key, show="•", width=60)),
-            (t("model_label"), ttk.Entry(f, textvariable=model, width=60)),
+            (t("model_label"), models),
+            ("", cost),
             (t("contact_label"), ttk.Entry(f, textvariable=contact, width=60))]
     for n, (label, widget) in enumerate(rows):
         ttk.Label(f, text=label).grid(row=n, column=0, sticky="w", pady=4, padx=(0, 10))
         widget.grid(row=n, column=1, sticky="w", pady=4)
+
+    def show_price(_event=None):
+        name = model.get().strip()
+        if not name:
+            cost.configure(text=t("free_models_note"))
+            return
+        cost.configure(text="…")
+
+        def job():  # network: runs off the UI thread, result comes back via the queue
+            try:
+                p = llm.price(name)
+            except Exception:  # noqa: BLE001 - offline: just no price
+                p = None
+            app.queue.put(("call", lambda: done(p)))
+
+        def done(p):
+            if model.get().strip() != name or not cost.winfo_exists():
+                return
+            if p is None:
+                cost.configure(text=t("price_unknown"))
+            else:
+                cost.configure(text=f"≈ ${p[2]:.4f} {t('per_task')}   "
+                                    f"(${p[0]:.3f} / ${p[1]:.3f} {t('per_million')})")
+
+        threading.Thread(target=job, daemon=True).start()
+
+    models.bind("<<ComboboxSelected>>", show_price)
+    models.bind("<Return>", show_price)
+    models.bind("<FocusOut>", show_price)
+    show_price()
     state = ttk.Label(f, text=t("key_set") if config.OPENROUTER_TOKEN else t("key_missing"))
     state.grid(row=len(rows), column=1, sticky="w", pady=(0, 8))
     ttk.Label(f, text=t("key_note"), foreground="#667", wraplength=700, justify="left").grid(
