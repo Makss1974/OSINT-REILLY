@@ -1,116 +1,200 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-OSINT-REILLY | MAIN — ГОЛОВНИЙ ОРКЕСТРАТОР СИСТЕМИ (БЛОК 0)
-Path: main.py
-Line Length Limit: 100 characters
+"""OSINT-REILLY v5 — console entry point.
 
-Main orchestrator of the entire engine execution pipeline. Manages global lifecycle.
+  python main.py                         interactive menu
+  python main.py run "topic" [options]   one analysis
+  python main.py topics topics.json      batch of topics
+  python main.py journal                 forecast journal and scores
+  python main.py resolve <id> yes|no     close a hypothesis forecast
 """
 
-import os
+import argparse
+import json
+import logging
 import sys
 
-# КРОК 1: Залізобетонно реєструємо корінь ДО того, як завантажиться хоч один наш модуль
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.insert(0, CURRENT_DIR)
+from rich.console import Console
+from rich.markup import escape
+from rich.table import Table
 
-import logging
-import time
-import argparse
-from datetime import datetime
+from reilly import config, journal, pipeline, planner, report
+from reilly.i18n import LANG_NAMES, LANGS, Translator
 
-# КРОК 2: Імпортуємо оркестратори та інфраструктурний менеджер сховища
-from core_intelligence.data_storage.storage_manager import StorageManager
-from block_1_task.orchestrator import run_block_1_task
-from block_2_inform.processor import Block2InformProcessor
-from block_4_analytics.analytics_engine import Block4AnalyticsEngine
-from block_5_report.report_builder import Block5ReportBuilder, ReportFormat
-
-# Налаштування логів системи
-LOG_DIR = os.path.join(CURRENT_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | [MAIN_CORE] %(message)s",
-    datefmt="%H:%M:%S",
-    handlers=[
-        logging.FileHandler(os.path.join(LOG_DIR, "reilly_core.log"), encoding="utf-8"),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
-
-DEFAULT_QUERY = (
-    "Проаналізуй стан оборонної промисловості Росії у 2024 році: "
-    "виробничі потужності заводів, динаміку вакансій на ВПК-підприємствах, "
-    "тендери на постачання металу та логістику залізничних маршрутів до заводів."
-)
+console = Console()
+SETTINGS = config.STATE / "settings.json"
 
 
-def execute_reilly_engine(query: str, mode: str = "hackathon") -> str:
-    """Глобальний конвеєр запуску та оркестрації всіх блоків системи OSINT-REILLY."""
-    start_time = time.time()
-    logger.info("=" * 70)
-    logger.info("🛡️  OSINT-REILLY ENGINE CORE v4.2 | ЗАПУСК ГОЛОВНОГО КОНВЕЄРА")
-    logger.info("=" * 70)
+def saved_lang() -> str:
+    """Language chosen in the menu, else REILLY_LANG from .env, else English."""
+    try:
+        return json.loads(SETTINGS.read_text(encoding="utf-8")).get("lang", config.DEFAULT_LANG)
+    except (OSError, ValueError):
+        return config.DEFAULT_LANG
 
-    # Ініціалізуємо єдине інфраструктурне ядро сховища даних
-    storage_mgr = StorageManager(base_state_dir=os.path.join(CURRENT_DIR, "state"))
 
-    # БЛОК 1: Валідація, класифікація та генерація програми дій
-    action_program = run_block_1_task(query, mode=mode)
+def save_lang(lang: str) -> None:
+    SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS.write_text(json.dumps({"lang": lang}), encoding="utf-8")
 
-    if hasattr(action_program, "is_rejected") and action_program.is_rejected:
-        logger.warning("[MAIN] ⚠️ Конвеєр зупинено Блоком 1: %s", action_program.rejection_reason)
-        return "CONVEYOR_REJECTED"
 
-    # БЛОК 2: Збір інформації через 5 рівнів BMW (передаємо спільне ядро сховища)
-    inform_processor = Block2InformProcessor(storage_mgr=storage_mgr)
-    inform_package = inform_processor.process(action_program)
+def split(value: str) -> list:
+    return [x.strip() for x in (value or "").split(",") if x.strip()]
 
-    # БЛОК 4: Аналітичний двигун (Матриця оцінки сигналів)
-    analytics_engine = Block4AnalyticsEngine()
-    analytics_result = analytics_engine.analyze(inform_package)
 
-    # БЛОК 5: Конструктор фінальних паспортів та звітів
-    report_builder = Block5ReportBuilder()
-    generated_report = report_builder.build(analytics_result)
+def show(r: dict, t: Translator) -> None:
+    for s in report.sections(r, t):
+        table = Table(title=escape(s["title"]), title_justify="left",
+                      header_style="bold cyan", show_header=any(s["columns"]))
+        for col in s["columns"]:
+            table.add_column(escape(str(col)), overflow="fold")
+        for row in s["rows"]:
+            table.add_row(*[escape(str(x)) for x in row])
+        console.print(table)
+    if r["summary"]:
+        console.rule(t("summary"))
+        console.print(escape(r["summary"]))
+    console.print(f"[dim]{t('disclaimer')}[/dim]")
 
-    # Визначення цільової директорії для виводу залежно від режиму
-    output_dir_map = {
-        "hackathon": os.path.join(CURRENT_DIR, "state", "reports"),
-        "full-tank": os.path.join(CURRENT_DIR, "state", "reports", "defense"),
-        "private":   os.path.join(CURRENT_DIR, "state", "reports", "private")
-    }
-    target_dir = output_dir_map.get(mode, os.path.join(CURRENT_DIR, "state", "reports"))
 
-    # Збереження результатів на диск у трьох бойових форматах
-    report_builder.save_report_to_disk(generated_report, ReportFormat.JSON, target_dir)
-    report_builder.save_report_to_disk(generated_report, ReportFormat.HTML, target_dir)
-    final_md_path = report_builder.save_report_to_disk(
-        generated_report, ReportFormat.MARKDOWN, target_dir
-    )
+def run_one(spec: dict, t: Translator, use_llm: bool = True, record: bool = True) -> None:
+    try:
+        plan = planner.build(
+            spec["topic"], lang=t.lang, assets=spec.get("assets"),
+            countries=spec.get("countries"), urls=spec.get("urls"),
+            search_langs=spec.get("langs"), hypothesis=spec.get("hypothesis", ""),
+            polarity=spec.get("polarity", "risk"),
+            asset_direction=spec.get("asset_direction", "auto"),
+            prior=float(spec.get("prior", 0.5)),
+            horizon_days=int(spec.get("horizon", 30)), translate=use_llm,
+        )
+    except planner.Rejected as exc:
+        console.print(f"[red]{t('rejected')}: {t(str(exc))}[/red]")
+        return
+    with console.status(t("collecting")) as status:
+        collected = pipeline.collect(plan, lambda msg: status.update(f"{t('collecting')}: {msg}"))
+        result = pipeline.analyze(plan, collected, use_llm=use_llm, record_forecasts=record)
+    show(result, t)
+    paths = report.save(result, t)
+    console.print(f"[green]{t('saved')}:[/green] " + "  ".join(str(p.relative_to(config.ROOT))
+                                                            for p in paths.values()))
 
-    elapsed_time = time.time() - start_time
-    logger.info("=" * 70)
-    logger.info("✅ OSINT-REILLY ENGINE PIPELINE COMPLETE SUCCESS")
-    logger.info("🔑 ID Запиту: %s | Час обробки: %.2f сек", generated_report.query_id, elapsed_time)
-    logger.info("=" * 70)
 
-    return final_md_path
+def show_journal(t: Translator) -> None:
+    n = journal.auto_resolve()
+    if n:
+        console.print(f"{n} {t('resolved_auto')}")
+    sb = journal.scoreboard()
+    table = Table(title=t("journal"), title_justify="left", header_style="bold cyan")
+    for col in ("id", t("question"), "p", t("due"), t("outcome")):
+        table.add_column(col, overflow="fold")
+    for row in sb["rows"][-40:]:
+        outcome = "—" if row["outcome"] is None else ("✔" if row["outcome"] else "✘")
+        table.add_row(row["id"], row["question"][:90], f"{row['p'] * 100:.0f}%",
+                      journal.fmt_date(row["due"]), outcome)
+    console.print(table)
+    console.print(f"{t('brier')}: {sb['brier'] if sb['brier'] is not None else '—'}   "
+                  f"{t('hit_rate')}: {sb['hit_rate'] if sb['hit_rate'] is not None else '—'}   "
+                  f"({sb['resolved']}/{sb['total']})")
+
+
+def run_topics(path: str, t: Translator, use_llm: bool) -> None:
+    with open(path, encoding="utf-8") as fh:
+        specs = json.load(fh)
+    for spec in specs:
+        console.rule(spec.get("topic", "")[:80])
+        run_one(spec, t, use_llm)
+
+
+def interactive(t: Translator) -> None:
+    while True:
+        console.rule(f"[bold]{t('title')}[/bold]  [{LANG_NAMES[t.lang]}]")
+        console.print(t("menu"))
+        choice = console.input(f"{t('choice')}: ").strip()
+        if choice == "1":
+            spec = {"topic": console.input(f"{t('topic_prompt')}: ")}
+            spec["assets"] = split(console.input(f"{t('assets_prompt')}: ")) or None
+            spec["countries"] = split(console.input(f"{t('countries_prompt')}: ")) or None
+            spec["urls"] = split(console.input(f"{t('urls_prompt')}: "))
+            spec["hypothesis"] = console.input(f"{t('hypothesis_prompt')}: ").strip()
+            if spec["hypothesis"]:
+                spec["polarity"] = "positive" if console.input(
+                    f"{t('polarity_prompt')} ").strip().lower().startswith("p") else "risk"
+                if spec.get("assets"):
+                    spec["asset_direction"] = console.input(
+                        f"{t('direction_prompt')} [auto]: ").strip().lower() or "auto"
+                spec["prior"] = float(console.input(f"{t('prior_prompt')} [0.5]: ") or 0.5)
+            spec["horizon"] = int(console.input(f"{t('horizon_prompt')} [30]: ") or 30)
+            run_one(spec, t)
+        elif choice == "2":
+            run_topics(console.input(f"{t('topics_file')} [topics.example.json]: ")
+                       or "topics.example.json", t, True)
+        elif choice == "3":
+            show_journal(t)
+        elif choice == "4":
+            fid = console.input(f"{t('forecast_id')}: ").strip()
+            yes = console.input(f"{t('happened')} ").strip().lower().startswith(("y", "т", "j", "o", "s", "t"))
+            console.print(t("ok") if journal.resolve(fid, yes) else t("not_found"))
+        elif choice == "5":
+            console.print("  ".join(f"{k}={v}" for k, v in LANG_NAMES.items()))
+            lang = console.input("> ").strip().lower()
+            if lang in LANGS:
+                save_lang(lang)
+                t = Translator(lang)
+        elif choice in ("0", "q", ""):
+            return
 
 
 def main() -> None:
-    """Точка входу CLI."""
-    parser = argparse.ArgumentParser(description="OSINT-REILLY Engine Main Orchestrator")
-    parser.add_argument("query", nargs="?", default=DEFAULT_QUERY, help="Аналітичний запит")
-    parser.add_argument("--mode", choices=["hackathon", "full-tank", "private"], default="hackathon")
-    args = parser.parse_args()
-    execute_reilly_engine(args.query, args.mode)
+    config.ensure_dirs()
+    logging.basicConfig(filename=config.LOG_DIR / "reilly.log", level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+                        encoding="utf-8")
+    ap = argparse.ArgumentParser(description="OSINT-REILLY v5")
+    ap.add_argument("--lang", choices=LANGS, help="interface / report language")
+    sub = ap.add_subparsers(dest="cmd")
+    r = sub.add_parser("run", help="analyse one topic")
+    r.add_argument("topic")
+    r.add_argument("--assets", default="", help="e.g. BTC,GC=F,^GDAXI,AAPL")
+    r.add_argument("--countries", default="", help="ISO2 codes, e.g. DE,PL")
+    r.add_argument("--urls", default="", help="public pages to monitor for changes")
+    r.add_argument("--langs", default="", help="search languages, e.g. en,de,uk")
+    r.add_argument("--hypothesis", default="")
+    r.add_argument("--polarity", choices=["risk", "positive"], default="risk")
+    r.add_argument("--asset-direction", choices=["auto", "up", "down"], default="auto",
+                   help="asset move that supports the hypothesis (gas spike = risk + up)")
+    r.add_argument("--prior", type=float, default=0.5)
+    r.add_argument("--horizon", type=int, default=30, help="days")
+    r.add_argument("--no-llm", action="store_true")
+    r.add_argument("--no-journal", action="store_true", help="do not record forecasts")
+    tp = sub.add_parser("topics", help="run every topic from a JSON file")
+    tp.add_argument("file")
+    tp.add_argument("--no-llm", action="store_true")
+    sub.add_parser("journal", help="forecast journal and calibration")
+    rs = sub.add_parser("resolve", help="resolve a hypothesis forecast")
+    rs.add_argument("id")
+    rs.add_argument("outcome", choices=["yes", "no"])
+    args = ap.parse_args()
+
+    t = Translator(args.lang or saved_lang())
+    if args.cmd == "run":
+        run_one({"topic": args.topic, "assets": split(args.assets) or None,
+                 "countries": split(args.countries) or None, "urls": split(args.urls),
+                 "langs": split(args.langs) or None, "hypothesis": args.hypothesis,
+                 "polarity": args.polarity, "asset_direction": args.asset_direction,
+                 "prior": args.prior, "horizon": args.horizon},
+                t, use_llm=not args.no_llm, record=not args.no_journal)
+    elif args.cmd == "topics":
+        run_topics(args.file, t, not args.no_llm)
+    elif args.cmd == "journal":
+        show_journal(t)
+    elif args.cmd == "resolve":
+        console.print(t("ok") if journal.resolve(args.id, args.outcome == "yes") else t("not_found"))
+    else:
+        interactive(t)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        sys.exit(130)

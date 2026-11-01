@@ -1,0 +1,29 @@
+[
+  {
+    "topic": "EU automotive supply chain: semiconductor and steel shortages",
+    "langs": ["en", "de", "pl"],
+    "assets": ["^STOXX50E", "HRC=F"],
+    "countries": ["DE", "PL"],
+    "hypothesis": "A major EU car maker announces production cuts due to supply shortages",
+    "polarity": "risk",
+    "prior": 0.3,
+    "horizon": 30
+  },
+  {
+    "topic": "Bitcoin price and crypto market regulation in Europe",
+    "langs": ["en", "de", "fr"],
+    "assets": ["BTC", "ETH"],
+    "horizon": 30
+  },
+  {
+    "topic": "Енергетична система України: відключення та ремонт генерації",
+    "langs": ["uk", "en"],
+    "countries": ["UA"],
+    "assets": ["TTF=F"],
+    "hypothesis": "Графіки відключень електроенергії розширять протягом місяця",
+    "polarity": "risk",
+    "asset_direction": "up",
+    "prior": 0.4,
+    "horizon": 30
+  }
+]
