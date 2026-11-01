@@ -119,6 +119,7 @@ class App:
         bar.pack(fill="x")
         ttk.Label(bar, text=t("double_click"), foreground="#667").pack(side="left")
         ttk.Button(bar, text=t("close_tab"), command=self.close_tab).pack(side="right")
+        ttk.Button(bar, text=t("copy_ai"), command=self.copy_for_ai).pack(side="right", padx=4)
         self.nb = ttk.Notebook(right)
         self.nb.pack(fill="both", expand=True, pady=(4, 0))
         for r in self.results:
@@ -232,6 +233,15 @@ class App:
 
         tree.bind("<Double-1>", on_double)
         return frame
+
+    def copy_for_ai(self) -> None:
+        current = self.nb.select()
+        if not current:
+            return
+        r = self.results[self.nb.index(current)]
+        self.root.clipboard_clear()
+        self.root.clipboard_append(report.to_ai_text(r, self.t))
+        self.status.configure(text=self.t("copied"))
 
     def close_tab(self) -> None:
         current = self.nb.select()

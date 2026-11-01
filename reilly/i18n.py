@@ -363,6 +363,61 @@ _T = {
                      "Doppelklick öffnet die Quelle", "Double-cliquez pour ouvrir la source",
                      "Doble clic para abrir la fuente", "Doppio clic per aprire la fonte",
                      "Kliknij dwukrotnie, aby otworzyć źródło"),
+    "copy_ai": ("Copy for AI", "Копіювати для ШІ", "Für KI kopieren", "Copier pour l'IA",
+                "Copiar para IA", "Copia per IA", "Kopiuj dla AI"),
+    "copied": ("Report copied to the clipboard — paste it into any AI chat",
+               "Звіт скопійовано в буфер — вставте в будь-який чат зі ШІ",
+               "Bericht in die Zwischenablage kopiert — in einen beliebigen KI-Chat einfügen",
+               "Rapport copié dans le presse-papiers — collez-le dans n'importe quel chat IA",
+               "Informe copiado al portapapeles: péguelo en cualquier chat de IA",
+               "Rapporto copiato negli appunti: incollalo in qualsiasi chat IA",
+               "Raport skopiowany do schowka — wklej go do dowolnego czatu AI"),
+    "ai_prompt": (
+        "Below is an OSINT report built from open sources (news, markets, official statistics). "
+        "Act as a careful intelligence analyst. 1) Separate verified facts from interpretations "
+        "and unconfirmed claims. 2) Name the weak points of the evidence and what data is "
+        "missing. 3) Give 2-3 scenarios for the forecast horizon with rough probabilities. "
+        "4) List signals that would confirm or refute each scenario. Answer in English, "
+        "concisely; say so when the data does not support a conclusion.",
+        "Нижче OSINT-звіт, зібраний з відкритих джерел (новини, ринки, офіційна статистика). "
+        "Дій як уважний аналітик розвідки. 1) Відокрем перевірені факти від інтерпретацій "
+        "і непідтверджених тверджень. 2) Назви слабкі місця доказів і яких даних бракує. "
+        "3) Дай 2-3 сценарії на горизонт прогнозу з орієнтовними ймовірностями. "
+        "4) Перелічи сигнали, що підтвердять або спростують кожен сценарій. Відповідай "
+        "українською, стисло; прямо кажи, коли дані не підтримують висновку.",
+        "Unten steht ein OSINT-Bericht aus offenen Quellen (Nachrichten, Märkte, amtliche "
+        "Statistik). Handle als sorgfältiger Nachrichtenanalyst. 1) Trenne belegte Fakten von "
+        "Deutungen und unbestätigten Behauptungen. 2) Nenne Schwachstellen der Belege und "
+        "fehlende Daten. 3) Gib 2-3 Szenarien für den Prognosehorizont mit groben "
+        "Wahrscheinlichkeiten. 4) Nenne Signale, die jedes Szenario bestätigen oder widerlegen. "
+        "Antworte auf Deutsch, knapp; sag es offen, wenn die Daten keinen Schluss tragen.",
+        "Voici un rapport OSINT issu de sources ouvertes (actualités, marchés, statistiques "
+        "officielles). Agis en analyste du renseignement rigoureux. 1) Sépare les faits vérifiés "
+        "des interprétations et affirmations non confirmées. 2) Indique les faiblesses des "
+        "preuves et les données manquantes. 3) Donne 2-3 scénarios pour l'horizon de prévision "
+        "avec des probabilités approximatives. 4) Liste les signaux qui confirmeraient ou "
+        "réfuteraient chaque scénario. Réponds en français, brièvement ; dis-le quand les "
+        "données ne permettent pas de conclure.",
+        "A continuación hay un informe OSINT de fuentes abiertas (noticias, mercados, "
+        "estadísticas oficiales). Actúa como un analista de inteligencia riguroso. 1) Separa "
+        "los hechos verificados de las interpretaciones y afirmaciones no confirmadas. "
+        "2) Señala los puntos débiles de la evidencia y los datos que faltan. 3) Da 2-3 "
+        "escenarios para el horizonte de pronóstico con probabilidades aproximadas. 4) Enumera "
+        "las señales que confirmarían o refutarían cada escenario. Responde en español, de "
+        "forma concisa; dilo cuando los datos no sostengan una conclusión.",
+        "Di seguito un rapporto OSINT da fonti aperte (notizie, mercati, statistiche "
+        "ufficiali). Agisci come un analista d'intelligence scrupoloso. 1) Separa i fatti "
+        "verificati da interpretazioni e affermazioni non confermate. 2) Indica i punti deboli "
+        "delle prove e i dati mancanti. 3) Fornisci 2-3 scenari per l'orizzonte di previsione "
+        "con probabilità indicative. 4) Elenca i segnali che confermerebbero o smentirebbero "
+        "ogni scenario. Rispondi in italiano, in modo conciso; dillo quando i dati non "
+        "sostengono una conclusione.",
+        "Poniżej raport OSINT z otwartych źródeł (wiadomości, rynki, oficjalne statystyki). "
+        "Działaj jak skrupulatny analityk wywiadu. 1) Oddziel zweryfikowane fakty od "
+        "interpretacji i niepotwierdzonych twierdzeń. 2) Wskaż słabe punkty dowodów i brakujące "
+        "dane. 3) Podaj 2-3 scenariusze na horyzont prognozy z przybliżonymi "
+        "prawdopodobieństwami. 4) Wymień sygnały, które potwierdzą lub obalą każdy scenariusz. "
+        "Odpowiadaj po polsku, zwięźle; mów wprost, gdy dane nie uzasadniają wniosku."),
     "close_tab": ("Close tab", "Закрити вкладку", "Tab schließen", "Fermer l'onglet",
                   "Cerrar pestaña", "Chiudi scheda", "Zamknij kartę"),
 }

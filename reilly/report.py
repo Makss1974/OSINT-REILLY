@@ -172,6 +172,11 @@ def to_markdown(r: Dict[str, Any], t: Translator) -> str:
     return "\n".join(lines)
 
 
+def to_ai_text(r: Dict[str, Any], t: Translator) -> str:
+    """Compact report with an analyst prompt, to paste into any AI chat."""
+    return f"{t('ai_prompt')}\n\n---\n\n{to_markdown(r, t)}"
+
+
 def to_html(r: Dict[str, Any], t: Translator) -> str:
     e = html.escape
     parts = [f"<!doctype html><html lang='{r['plan']['lang']}'><head><meta charset='utf-8'>"
