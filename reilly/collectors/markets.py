@@ -13,10 +13,10 @@ ALIASES = {
     "ethereum": "ETH", "ефір": "ETH", "eth": "ETH", "solana": "SOL", "xrp": "XRP",
     "gold": "GC=F", "золото": "GC=F", "gold price": "GC=F", "złoto": "GC=F",
     "brent": "BZ=F", "oil": "CL=F", "нафта": "BZ=F", "öl": "BZ=F", "pétrole": "BZ=F",
-    "gas": "TTF=F", "газ": "TTF=F", "wheat": "ZW=F", "пшениця": "ZW=F",
+    "gas": "MTF=F", "газ": "MTF=F", "wheat": "ZW=F", "пшениця": "ZW=F",
     "copper": "HG=F", "мідь": "HG=F", "steel": "HRC=F", "сталь": "HRC=F",
     "s&p 500": "^GSPC", "s&p": "^GSPC", "nasdaq": "^IXIC", "dax": "^GDAXI",
-    "cac 40": "^FCHI", "ftse": "^FTSE", "euro stoxx": "^STOXX50E", "wig20": "WIG20.WA",
+    "cac 40": "^FCHI", "ftse": "^FTSE", "euro stoxx": "^STOXX50E", "wig20": "ETFBW20TR.WA",
     "eur/usd": "EURUSD=X", "eurusd": "EURUSD=X", "usd/uah": "UAH=X", "vix": "^VIX",
 }
 CRYPTO = {"BTC", "ETH", "SOL", "XRP", "BNB", "ADA", "DOGE", "TON", "DOT", "LINK", "AVAX", "LTC"}

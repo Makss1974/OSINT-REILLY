@@ -19,7 +19,7 @@
     "topic": "Енергетична система України: відключення та ремонт генерації",
     "langs": ["uk", "en"],
     "countries": ["UA"],
-    "assets": ["TTF=F"],
+    "assets": ["MTF=F"],
     "hypothesis": "Графіки відключень електроенергії розширять протягом місяця",
     "polarity": "risk",
     "asset_direction": "up",

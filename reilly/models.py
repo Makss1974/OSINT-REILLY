@@ -15,6 +15,7 @@ class Article:
     collector: str
     snippet: str = ""
     tone: Optional[float] = None  # GDELT tone if known
+    tier: int = 0  # source trust from sources.json: 1 trusted, 2 normal, 3 low, 0 unknown
     passport: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -53,6 +54,12 @@ class Plan:
     asset_direction: str = "auto"  # up | down | auto — asset move that supports it
     prior: float = 0.5
     horizon_days: int = 30
+    profile: str = ""  # profile id from profiles.json, "" = free topic
+    feeds: List[Dict[str, Any]] = field(default_factory=list)  # RSS feeds to read
+    extras: List[str] = field(default_factory=list)  # special collectors
+    filter_keywords: List[str] = field(default_factory=list)  # for general feeds
+    locations: List[Dict[str, Any]] = field(default_factory=list)  # hazards
+    research_topics: List[str] = field(default_factory=list)  # science
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -63,5 +70,8 @@ class Collected:
     articles: List[Article] = field(default_factory=list)
     series: List[Series] = field(default_factory=list)
     pages: List[Dict[str, Any]] = field(default_factory=list)
+    events: List[Dict[str, Any]] = field(default_factory=list)  # disasters
+    forecasts: Dict[str, Any] = field(default_factory=dict)  # weather / flood / air / kp
+    research: List[Dict[str, Any]] = field(default_factory=list)  # papers, trends
     errors: List[str] = field(default_factory=list)
     sources_used: List[str] = field(default_factory=list)

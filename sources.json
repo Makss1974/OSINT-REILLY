@@ -1,0 +1,35 @@
+{
+  "_help": "RSS feeds REILLY reads. Edit freely: tier 1 = trusted (higher weight in the signal passport), 2 = normal, 3 = low. 'focused': true means every item is on-topic for its tags (no keyword filter). Set 'enabled': false to switch a feed off.",
+  "feeds": {
+    "ukrainska_pravda": {"name": "Українська правда", "url": "https://www.pravda.com.ua/rss/view_news/", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics", "economy"]},
+    "epravda": {"name": "Економічна правда", "url": "https://www.epravda.com.ua/rss/", "lang": "uk", "tier": 1, "tags": ["economy"], "focused": true},
+    "eurointegration": {"name": "Європейська правда", "url": "https://www.eurointegration.com.ua/rss/", "lang": "uk", "tier": 1, "tags": ["eu", "ua_politics"], "focused": true},
+    "ukrinform": {"name": "Укрінформ", "url": "https://www.ukrinform.ua/rss/block-lastnews", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics", "economy", "eu"]},
+    "suspilne": {"name": "Суспільне", "url": "https://suspilne.media/rss/all.rss", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics", "economy", "hazards"]},
+    "liga": {"name": "LIGA.net", "url": "https://www.liga.net/news/all/rss.xml", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics", "economy"]},
+    "kyiv_independent": {"name": "The Kyiv Independent", "url": "https://kyivindependent.com/news-archive/rss/", "lang": "en", "tier": 1, "tags": ["war", "ua_politics", "eu"]},
+    "nv": {"name": "NV", "url": "https://nv.ua/ukr/rss/all.xml", "lang": "uk", "tier": 2, "tags": ["war", "ua_politics", "economy"]},
+    "radio_svoboda": {"name": "Радіо Свобода", "url": "https://www.radiosvoboda.org/api/zrqiteuuir", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics"]},
+    "zn": {"name": "Дзеркало тижня", "url": "https://zn.ua/ukr/rss/full.rss", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics", "economy"]},
+    "interfax_ua": {"name": "Інтерфакс-Україна", "url": "https://interfax.com.ua/news/last.rss", "lang": "uk", "tier": 2, "tags": ["war", "ua_politics", "economy"]},
+    "militarnyi": {"name": "Мілітарний", "url": "https://mil.in.ua/uk/feed/", "lang": "uk", "tier": 1, "tags": ["war"], "focused": true},
+    "defense_express": {"name": "Defense Express", "url": "https://defence-ua.com/rss/feed.xml", "lang": "uk", "tier": 1, "tags": ["war"], "focused": true},
+    "mezha": {"name": "Mezha", "url": "https://mezha.media/feed/", "lang": "uk", "tier": 2, "tags": ["tech"], "focused": true},
+    "dev_ua": {"name": "dev.ua", "url": "https://dev.ua/rss", "lang": "uk", "tier": 2, "tags": ["tech"], "focused": true},
+    "forklog_ua": {"name": "ForkLog UA", "url": "https://forklog.com.ua/feed/", "lang": "uk", "tier": 2, "tags": ["crypto"], "focused": true},
+
+    "notes_from_poland": {"name": "Notes from Poland", "url": "https://notesfrompoland.com/feed/", "lang": "en", "tier": 1, "tags": ["poland"], "focused": true},
+    "tvn24": {"name": "TVN24", "url": "https://tvn24.pl/najnowsze.xml", "lang": "pl", "tier": 1, "tags": ["poland", "hazards"]},
+    "rzeczpospolita": {"name": "Rzeczpospolita", "url": "https://www.rp.pl/rss_main", "lang": "pl", "tier": 1, "tags": ["poland", "economy"]},
+    "bankier": {"name": "Bankier.pl", "url": "https://www.bankier.pl/rss/wiadomosci.xml", "lang": "pl", "tier": 2, "tags": ["economy", "poland"], "focused": true},
+
+    "ec_press": {"name": "European Commission", "url": "https://ec.europa.eu/commission/presscorner/api/rss?language=en", "lang": "en", "tier": 1, "tags": ["eu"], "focused": true},
+    "politico_eu": {"name": "Politico Europe", "url": "https://www.politico.eu/feed/", "lang": "en", "tier": 1, "tags": ["eu"], "focused": true},
+    "euronews": {"name": "Euronews", "url": "https://www.euronews.com/rss", "lang": "en", "tier": 2, "tags": ["eu", "hazards"]},
+    "dw": {"name": "DW", "url": "https://rss.dw.com/rdf/rss-en-all", "lang": "en", "tier": 1, "tags": ["eu", "war", "economy", "hazards"]},
+
+    "coindesk": {"name": "CoinDesk", "url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "lang": "en", "tier": 2, "tags": ["crypto"], "focused": true},
+    "cointelegraph": {"name": "Cointelegraph", "url": "https://cointelegraph.com/rss", "lang": "en", "tier": 2, "tags": ["crypto"], "focused": true},
+    "nature": {"name": "Nature", "url": "https://www.nature.com/nature.rss", "lang": "en", "tier": 1, "tags": ["science"], "focused": true}
+  }
+}

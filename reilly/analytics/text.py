@@ -133,6 +133,19 @@ def _stem_hit(text_lower: str, words: List[str], stem: str) -> int:
     return sum(1 for w in words if w.startswith(stem))
 
 
+def count_stems(text: str, stems: Iterable[str]) -> int:
+    low = (text or "").lower()
+    words = tokens(low)
+    return sum(_stem_hit(low, words, s) for s in set(stems))
+
+
+def distinct_hits(text: str, stems: Iterable[str]) -> int:
+    """How many different stems occur at least once."""
+    low = (text or "").lower()
+    words = tokens(low)
+    return sum(1 for s in set(stems) if _stem_hit(low, words, s))
+
+
 def lexicon_counts(text: str) -> Dict[str, int]:
     low = (text or "").lower()
     words = tokens(low)

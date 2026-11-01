@@ -67,7 +67,9 @@ def google_news(query: str, lang: str, days: int = 30, limit: int = 60) -> List[
 
 def _gdelt_query(query: str, lang: str) -> str:
     # GDELT accepts parentheses only around OR-groups; plain words are AND-ed
-    q = query.replace("(", " ").replace(")", " ").strip()
+    q = query.replace("(", " ").replace(")", " ")
+    # GDELT rejects the whole query if any keyword is shorter than 3 characters
+    q = " ".join(w for w in q.split() if len(w) >= 3 or w == "OR")
     if lang in GDELT_LANG:
         q += f" sourcelang:{GDELT_LANG[lang]}"
     return q

@@ -43,6 +43,14 @@ def is_tier1(name: str) -> bool:
     return any(t.replace(" ", "") in name for t in TIER1)
 
 
+def relevance_score(keywords: List[str], body: str) -> float:
+    """Short topic -> share of its words present; long profile vocabularies ->
+    saturating count of hits (3 distinct hits = fully relevant)."""
+    if len(keywords) <= 12:
+        return tx.stem_overlap(keywords, body)
+    return min(1.0, tx.distinct_hits(body, keywords) / 3)
+
+
 def cluster(articles: Sequence[Article], threshold: float = 0.34) -> List[List[int]]:
     """Greedy single-pass clustering of near-duplicate headlines."""
     clusters: List[List[int]] = []
@@ -76,10 +84,11 @@ def score_articles(articles: List[Article], keywords: List[str],
         lex = tx.lexicon_counts(body)
         days = max(0.0, (now - a.published) / 86400) if a.published else 7.0
         n_src = len(story_sources[story_of[i]])
-        tier1 = is_tier1(source_key(a))
-        relevance = tx.stem_overlap(keywords, body)
+        tier1 = a.tier == 1 or (a.tier == 0 and is_tier1(source_key(a)))
+        relevance = relevance_score(keywords, body)
         recency = 1.0 / (1.0 + days * s_coef)
-        importance = min(1.0, 0.2 + (0.3 if tier1 else 0.0) + 0.1 * (n_src - 1))
+        trust_bonus = 0.3 if tier1 else 0.1 if a.tier == 2 else -0.1 if a.tier == 3 else 0.0
+        importance = max(0.1, min(1.0, 0.2 + trust_bonus + 0.1 * (n_src - 1)))
         sent = (max(-10.0, min(10.0, a.tone)) / 10.0) if a.tone is not None else tx.sentiment(body)
         if n_src >= 3 and not lex["hedge"]:
             truth = 2

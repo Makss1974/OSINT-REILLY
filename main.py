@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""OSINT-REILLY v5 — console entry point.
+"""OSINT-REILLY v5 — entry point.
 
-  python main.py                         interactive menu
+  python main.py                         desktop window (tkinter)
+  python main.py console                 interactive console menu
+  python main.py profile [ids]           standing profiles (empty = all)
   python main.py run "topic" [options]   one analysis
   python main.py topics topics.json      batch of topics
   python main.py journal                 forecast journal and scores
@@ -17,26 +19,10 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from reilly import config, journal, pipeline, planner, report
+from reilly import config, journal, pipeline, planner, profiles, report
 from reilly.i18n import LANG_NAMES, LANGS, Translator
 
 console = Console()
-SETTINGS = config.STATE / "settings.json"
-
-
-def saved_lang() -> str:
-    """Language chosen in the menu, else REILLY_LANG from .env, else English."""
-    try:
-        return json.loads(SETTINGS.read_text(encoding="utf-8")).get("lang", config.DEFAULT_LANG)
-    except (OSError, ValueError):
-        return config.DEFAULT_LANG
-
-
-def save_lang(lang: str) -> None:
-    SETTINGS.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS.write_text(json.dumps({"lang": lang}), encoding="utf-8")
-
-
 def split(value: str) -> list:
     return [x.strip() for x in (value or "").split(",") if x.strip()]
 
@@ -70,6 +56,19 @@ def run_one(spec: dict, t: Translator, use_llm: bool = True, record: bool = True
     except planner.Rejected as exc:
         console.print(f"[red]{t('rejected')}: {t(str(exc))}[/red]")
         return
+    with console.status(t("collecting")) as status:
+        collected = pipeline.collect(plan, lambda msg: status.update(f"{t('collecting')}: {msg}"))
+        result = pipeline.analyze(plan, collected, use_llm=use_llm, record_forecasts=record)
+    show(result, t)
+    paths = report.save(result, t)
+    console.print(f"[green]{t('saved')}:[/green] " + "  ".join(str(p.relative_to(config.ROOT))
+                                                            for p in paths.values()))
+
+
+def run_profile(pid: str, t: Translator, use_llm: bool = True, record: bool = True,
+                horizon: int = 30) -> None:
+    plan = profiles.build_plan(pid, t.lang, horizon_days=horizon)
+    console.rule(f"[bold]{escape(t('p_' + pid))}[/bold]")
     with console.status(t("collecting")) as status:
         collected = pipeline.collect(plan, lambda msg: status.update(f"{t('collecting')}: {msg}"))
         result = pipeline.analyze(plan, collected, use_llm=use_llm, record_forecasts=record)
@@ -138,7 +137,7 @@ def interactive(t: Translator) -> None:
             console.print("  ".join(f"{k}={v}" for k, v in LANG_NAMES.items()))
             lang = console.input("> ").strip().lower()
             if lang in LANGS:
-                save_lang(lang)
+                config.save_lang(lang)
                 t = Translator(lang)
         elif choice in ("0", "q", ""):
             return
@@ -166,16 +165,23 @@ def main() -> None:
     r.add_argument("--horizon", type=int, default=30, help="days")
     r.add_argument("--no-llm", action="store_true")
     r.add_argument("--no-journal", action="store_true", help="do not record forecasts")
+    pr = sub.add_parser("profile", help="run standing profiles from profiles.json")
+    pr.add_argument("ids", nargs="*", help="profile ids (empty = all): " +
+                    ", ".join(profiles.profile_ids()))
+    pr.add_argument("--horizon", type=int, default=30)
+    pr.add_argument("--no-llm", action="store_true")
+    pr.add_argument("--no-journal", action="store_true")
     tp = sub.add_parser("topics", help="run every topic from a JSON file")
     tp.add_argument("file")
     tp.add_argument("--no-llm", action="store_true")
+    sub.add_parser("console", help="interactive console menu")
     sub.add_parser("journal", help="forecast journal and calibration")
     rs = sub.add_parser("resolve", help="resolve a hypothesis forecast")
     rs.add_argument("id")
     rs.add_argument("outcome", choices=["yes", "no"])
     args = ap.parse_args()
 
-    t = Translator(args.lang or saved_lang())
+    t = Translator(args.lang or config.saved_lang())
     if args.cmd == "run":
         run_one({"topic": args.topic, "assets": split(args.assets) or None,
                  "countries": split(args.countries) or None, "urls": split(args.urls),
@@ -183,14 +189,26 @@ def main() -> None:
                  "polarity": args.polarity, "asset_direction": args.asset_direction,
                  "prior": args.prior, "horizon": args.horizon},
                 t, use_llm=not args.no_llm, record=not args.no_journal)
+    elif args.cmd == "profile":
+        for pid in args.ids or profiles.profile_ids():
+            run_profile(pid, t, use_llm=not args.no_llm, record=not args.no_journal,
+                        horizon=args.horizon)
     elif args.cmd == "topics":
         run_topics(args.file, t, not args.no_llm)
     elif args.cmd == "journal":
         show_journal(t)
     elif args.cmd == "resolve":
         console.print(t("ok") if journal.resolve(args.id, args.outcome == "yes") else t("not_found"))
-    else:
+    elif args.cmd == "console":
         interactive(t)
+    else:
+        try:
+            from reilly import gui
+        except ImportError as exc:  # Python built without tkinter
+            console.print(f"[yellow]tkinter: {exc}[/yellow]")
+            interactive(t)
+        else:
+            gui.main()
 
 
 if __name__ == "__main__":

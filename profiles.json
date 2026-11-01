@@ -1,0 +1,93 @@
+{
+  "_help": "Standing analysis profiles. feed_tags pick feeds from sources.json; queries go to Google News per language; extras are special collectors; keywords filter general feeds and drive relevance. Edit freely.",
+  "home_country": "PL",
+  "locations": [
+    {"name": "Warszawa", "country": "PL", "lat": 52.23, "lon": 21.01, "river": {"name": "Wisła", "lat": 52.30, "lon": 20.95}},
+    {"name": "Kraków", "country": "PL", "lat": 50.06, "lon": 19.94, "river": {"name": "Wisła", "lat": 50.05, "lon": 19.95}},
+    {"name": "Wrocław", "country": "PL", "lat": 51.11, "lon": 17.03, "river": {"name": "Odra", "lat": 51.11, "lon": 17.02}},
+    {"name": "Gdańsk", "country": "PL", "lat": 54.35, "lon": 18.65, "river": {"name": "Wisła (Tczew)", "lat": 54.08, "lon": 18.79}},
+    {"name": "Київ", "country": "UA", "lat": 50.45, "lon": 30.52},
+    {"name": "Львів", "country": "UA", "lat": 49.84, "lon": 24.03},
+    {"name": "Дніпро", "country": "UA", "lat": 48.46, "lon": 35.05, "river": {"name": "Дніпро", "lat": 48.46, "lon": 35.0}},
+    {"name": "Одеса", "country": "UA", "lat": 46.48, "lon": 30.72},
+    {"name": "Миколаїв", "country": "UA", "lat": 46.97, "lon": 32.0, "river": {"name": "Південний Буг", "lat": 47.0, "lon": 31.95}},
+    {"name": "Харків", "country": "UA", "lat": 49.99, "lon": 36.23},
+    {"name": "Ужгород", "country": "UA", "lat": 48.62, "lon": 22.29}
+  ],
+  "profiles": {
+    "war_ua": {
+      "langs": ["uk", "en", "pl"],
+      "queries": {"uk": "війна фронт ЗСУ", "en": "Ukraine war front", "pl": "wojna Ukraina front"},
+      "feed_tags": ["war"],
+      "extras": ["war_losses"],
+      "countries": ["UA"],
+      "assets": [],
+      "keywords": ["фронт", "зсу", "обстріл", "атак", "ракет", "дрон", "бпла", "наступ", "оборон", "війн", "армі", "окупант", "генштаб", "шахед", "мобілізац", "перемовин",
+                   "war", "front", "strike", "missile", "drone", "offensive", "troops", "shelling", "ceasefire",
+                   "wojn", "front", "atak", "rakiet", "dron"]
+    },
+    "eu_poland": {
+      "langs": ["pl", "en", "uk"],
+      "queries": {"pl": "rząd Polska UE", "en": "Poland EU politics", "uk": "Польща ЄС політика"},
+      "feed_tags": ["eu", "poland"],
+      "extras": ["nbp_fx", "eurostat_hicp"],
+      "countries": ["PL"],
+      "assets": ["ETFBW20TR.WA", "EURPLN=X"],
+      "keywords": ["rząd", "sejm", "premier", "prezydent", "ustaw", "wybor", "unia", "komisj", "polsk", "uchodźc",
+                   "poland", "polish", "warsaw", "tusk", "commission", "parliament", "eu ", "brussels", "sanction", "migration",
+                   "польщ", "польськ", "євросоюз", "єс ", "єврокоміс"]
+    },
+    "ua_politics": {
+      "langs": ["uk", "en"],
+      "queries": {"uk": "Верховна Рада уряд закон", "en": "Ukraine parliament government"},
+      "feed_tags": ["ua_politics"],
+      "extras": [],
+      "countries": ["UA"],
+      "assets": [],
+      "keywords": ["рада", "депутат", "закон", "уряд", "кабмін", "міністр", "президент", "зеленськ", "вибор", "корупц", "набу", "суд ", "суду", "санкц", "реформ", "бюджет",
+                   "parliament", "rada", "government", "minister", "zelensky", "corruption", "nabu", "law", "reform"]
+    },
+    "economy": {
+      "langs": ["uk", "pl", "en", "de"],
+      "queries": {"uk": "економіка інфляція курс", "pl": "gospodarka inflacja", "en": "economy inflation rates", "de": "Wirtschaft Inflation"},
+      "feed_tags": ["economy"],
+      "extras": ["nbu_fx", "nbu_rate", "nbp_fx", "eurostat_hicp"],
+      "countries": ["UA", "PL", "DE"],
+      "assets": ["^STOXX50E", "^GSPC", "EURUSD=X", "BZ=F", "GC=F", "MTF=F"],
+      "keywords": ["економ", "інфляц", "ввп", "курс", "гривн", "нбу", "ставк", "бюджет", "податк", "експорт", "ціни",
+                   "econom", "inflation", "gdp", "rate", "budget", "tax", "export", "prices", "recession",
+                   "gospodar", "inflac", "stopy", "budżet", "podat", "złot"]
+    },
+    "crypto": {
+      "langs": ["en", "uk", "de"],
+      "queries": {"en": "bitcoin crypto market", "uk": "біткоїн криптовалюта", "de": "Bitcoin Krypto"},
+      "feed_tags": ["crypto"],
+      "extras": ["fear_greed", "defi_tvl", "stablecoins"],
+      "countries": [],
+      "assets": ["BTC", "ETH", "SOL"],
+      "keywords": ["bitcoin", "crypto", "ethereum", "stablecoin", "etf", "blockchain", "mica", "біткоїн", "крипт", "блокчейн"]
+    },
+    "science_tech": {
+      "langs": ["en", "uk"],
+      "queries": {"en": "AI technology breakthrough", "uk": "технології штучний інтелект"},
+      "feed_tags": ["tech", "science"],
+      "extras": ["arxiv", "openalex", "hackernews"],
+      "research_topics": ["large language model", "drone autonomy", "battery energy storage", "quantum computing", "fusion energy"],
+      "countries": [],
+      "assets": ["NVDA", "^IXIC", "SOXX"],
+      "keywords": ["ai ", "штучн", "технолог", "дрон", "чип", "квант", "батаре", "енергі", "космос", "робот",
+                   "model", "chip", "quantum", "battery", "drone", "robot", "space", "research", "fusion"]
+    },
+    "hazards": {
+      "langs": ["uk", "pl", "en"],
+      "queries": {"uk": "повінь пожежа буря попередження", "pl": "powódź ostrzeżenie IMGW burza", "en": "Europe flood storm warning"},
+      "feed_tags": ["hazards"],
+      "extras": ["weather", "floods", "air_quality", "gdacs", "earthquakes", "eonet", "space_weather"],
+      "countries": [],
+      "assets": [],
+      "keywords": ["повін", "паводок", "пожеж", "буря", "шторм", "спек", "мороз", "землетрус", "посух", "негод", "злив",
+                   "flood", "wildfire", "storm", "heatwave", "drought", "earthquake", "hurricane",
+                   "powód", "pożar", "burz", "upał", "susz", "ostrzeżen", "imgw", "nawałnic"]
+    }
+  }
+}

@@ -22,12 +22,13 @@ def num(x: Any, digits: int = 2) -> str:
     return f"{x:.{digits}f}" if isinstance(x, float) else str(x)
 
 
-def sections(r: Dict[str, Any], t: Translator) -> List[Dict[str, Any]]:
+def sections(r: Dict[str, Any], t: Translator, full: bool = False) -> List[Dict[str, Any]]:
+    """Report as a list of tables. full=True gives longer lists (window UI)."""
     out: List[Dict[str, Any]] = []
     p = r["plan"]
-    out.append({"title": t("plan"), "columns": ["", ""], "rows": [
+    out.append({"key": "plan", "title": t("plan"), "columns": ["", ""], "rows": [
         [t("topic_prompt"), p["topic"]],
-        [t("domain"), p["domain"]],
+        [t("domain"), t("p_" + p["profile"]) if p.get("profile") else p["domain"]],
         [t("queries"), "; ".join(f"{k}: {v}" for k, v in p["search_queries"].items())],
         [t("assets_prompt").split(" (")[0], ", ".join(p["assets"]) or "—"],
         [t("countries_prompt").split(" (")[0], ", ".join(p["countries"]) or "—"],
@@ -35,10 +36,13 @@ def sections(r: Dict[str, Any], t: Translator) -> List[Dict[str, Any]]:
         [t("errors"), "; ".join(r["errors"]) or "—"],
     ]})
 
-    out.append({"title": f"{t('stories')} — {r['counts']['articles']} / {r['n_stories']}",
+    shown = r["stories"][:40 if full else 12]
+    out.append({"key": "stories",
+                "title": f"{t('stories')} — {r['counts']['articles']} / {r['n_stories']}",
                 "columns": [t("story"), t("n_sources"), t("truth"), t("sentiment"), t("weight")],
                 "rows": [[s["title"][:110], s["sources"], f"{s['truth']:+d}",
-                          num(s["sentiment"]), num(s["weight"], 3)] for s in r["stories"][:12]]})
+                          num(s["sentiment"]), num(s["weight"], 3)] for s in shown],
+                "links": [s["url"] for s in shown]})
 
     m = r["methods"]
     if m:
@@ -59,7 +63,7 @@ def sections(r: Dict[str, Any], t: Translator) -> List[Dict[str, Any]]:
             rows.append([t("crisis_chain"), f"{c['current_state']} → "
                                             f"{c['p_crisis_day_in_horizon'] * 100:.0f}% "
                                             f"(base {c['p_crisis_base'] * 100:.0f}%)"])
-        out.append({"title": t("methods"), "columns": [t("method"), t("value")], "rows": rows})
+        out.append({"key": "methods", "title": t("methods"), "columns": [t("method"), t("value")], "rows": rows})
 
     if r["markets"]:
         rows = []
@@ -76,17 +80,17 @@ def sections(r: Dict[str, Any], t: Translator) -> List[Dict[str, Any]]:
                 f"{num(mc['quantiles']['p05'])} … {num(mc['quantiles']['p95'])}",
                 f"{mk['current_state']}",
             ])
-        out.append({"title": f"{t('markets')} — {t('horizon_prompt')} {p['horizon_days']}",
+        out.append({"key": "markets", "title": f"{t('markets')} — {t('horizon_prompt')} {p['horizon_days']}",
                     "columns": [t("asset"), t("last"), t("chg30"), t("chg1y"), t("vol"), t("mdd"),
                                 "RSI", t("trend"), t("p_up"), t("range90"), t("regime")],
                     "rows": rows})
     if r["correlation"]:
         names = list(r["correlation"])
-        out.append({"title": t("correlation"), "columns": [""] + names,
+        out.append({"key": "correlation", "title": t("correlation"), "columns": [""] + names,
                     "rows": [[a] + [num(r["correlation"][a][b]) for b in names] for a in names]})
 
     if r["macro"]:
-        out.append({"title": t("macro"),
+        out.append({"key": "macro", "title": t("macro"),
                     "columns": [t("indicator"), t("latest"), t("avg5"), t("trend"), t("forecast")],
                     "rows": [[f"{x['series']} ({x['unit']})", f"{x['latest']} ({x['last_year']})",
                               x["avg_5y"], f"{x['trend_10y']:+.2f}/yr",
@@ -94,23 +98,57 @@ def sections(r: Dict[str, Any], t: Translator) -> List[Dict[str, Any]]:
                              for x in r["macro"]]})
 
     if r["attention"]:
-        out.append({"title": t("attention"),
+        out.append({"key": "attention", "title": t("attention"),
                     "columns": [t("series"), t("last"), t("recent_vs_base"), "z", t("anomalies")],
                     "rows": [[a["series"], num(a.get("last")), pct(a.get("recent_vs_base"), 0),
                               num(a.get("z_last")),
                               ", ".join(f"{x['date']}({x['z']:+.0f})" for x in a.get("anomalies", [])[-4:])
                               or "—"] for a in r["attention"]]})
 
+    if r.get("indicators"):
+        rows = []
+        for i in r["indicators"]:
+            extra = ""
+            if i.get("intensity"):
+                extra = (f"{i['intensity']['current_state']} → "
+                         f"{i['intensity']['p_crisis_day_in_horizon'] * 100:.0f}%")
+            rows.append([f"{i['series']} ({i['unit']})", num(i.get("last")),
+                         pct(i.get("change_30")), pct(i.get("recent_vs_base"), 0),
+                         num(i.get("z_last")), extra or "—",
+                         ", ".join(f"{x['date']}({x['z']:+.0f})" for x in i.get("anomalies", [])[-3:])
+                         or "—"])
+        out.append({"key": "indicators", "title": t("indicators"),
+                    "columns": [t("series"), t("last"), t("chg30"), t("recent_vs_base"), "z",
+                                t("intensity"), t("anomalies")], "rows": rows})
+
+    hz = r.get("hazards") or {}
+    if hz:
+        alerts = hz["alerts"][:80 if full else 25]
+        counts = ", ".join(f"{t('lvl_' + k)}: {v}" for k, v in hz["by_level"].items()) or "0"
+        out.append({"key": "hazards", "title": f"{t('hazards')} — {counts}",
+                    "columns": [t("level"), t("hazard"), t("location"), t("date"), t("value"),
+                                t("source")],
+                    "rows": [[t("lvl_" + a["level"]), t("hz_" + a["hazard"]), a["location"],
+                              a["date"], a["value"], a["source"]] for a in alerts],
+                    "links": [a.get("url", "") for a in alerts]})
+
+    if r.get("research"):
+        out.append({"key": "research", "title": t("research"),
+                    "columns": [t("topic_prompt"), t("works_year"), t("growth"), t("by_year")],
+                    "rows": [[x["topic"], x["last_full_year"], pct(x["growth"], 0),
+                              "  ".join(f"{y}:{n}" for y, n in x["by_year"].items())]
+                             for x in r["research"]]})
+
     h = r.get("hypothesis")
     if h:
         rows = [[e["evidence"], str(e["value"]), f"{e['llr']:+.3f}"] for e in h["evidence"]]
         rows.append([f"{t('prior')} → {t('posterior')}", f"{h['prior'] * 100:.0f}% → "
                      f"{h['posterior'] * 100:.0f}%", f"Σ {h['total_llr']:+.3f}"])
-        out.append({"title": f"{t('hypothesis')}: {h['text']} [{h['polarity']}]",
+        out.append({"key": "hypothesis", "title": f"{t('hypothesis')}: {h['text']} [{h['polarity']}]",
                     "columns": [t("evidence"), t("value"), "LLR"], "rows": rows})
 
     if r["pages"]:
-        out.append({"title": t("pages"), "columns": ["URL", t("status"), "+", "−"],
+        out.append({"key": "pages", "title": t("pages"), "columns": ["URL", t("status"), "+", "−"],
                     "rows": [[pg["url"], pg["status"], len(pg.get("added", [])),
                               len(pg.get("removed", []))] for pg in r["pages"]]})
     return out

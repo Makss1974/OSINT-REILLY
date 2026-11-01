@@ -5,9 +5,11 @@ import logging
 import time
 from typing import Any, Callable, Dict, List
 
-from . import journal, llm
+from . import journal, llm, profiles
+from .analytics import hazards as hz
 from .analytics import logic, market, signals, timeseries
-from .collectors import brightdata, macro, markets, news, pages, wiki
+from .collectors import (brightdata, crypto, hazards, macro, markets, news, official, pages,
+                         rss, science, wiki)
 from .http import FetchError
 from .i18n import LANG_NAMES
 from .models import Article, Collected, Plan, Series
@@ -44,6 +46,19 @@ def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
             progress(f"Bright Data SERP [{lang}]")
             articles += _try(c, "Bright Data SERP", brightdata.serp, q, lang) or []
 
+    now = time.time()
+    for feed in plan.feeds:
+        progress(f"RSS: {feed['name']}")
+        articles += _try(c, f"RSS {feed['name']}", rss.read_feed, feed,
+                         plan.filter_keywords, 14, now) or []
+    if plan.profile == "science_tech":
+        for topic in plan.research_topics:
+            progress(f"arXiv / Hacker News: {topic}")
+            if "arxiv" in plan.extras:
+                articles += _try(c, "arXiv", science.arxiv, topic, 10) or []
+            if "hackernews" in plan.extras:
+                articles += _try(c, "Hacker News", science.hackernews, topic, 10) or []
+
     seen, unique = set(), []
     for a in articles:
         key = a.url or a.title.lower()
@@ -58,7 +73,9 @@ def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
     if timelines:
         c.series += [s for s in timelines if s.values]
 
-    for lang in dict.fromkeys([plan.lang, "en"]):
+    # profile queries are keyword bags: only English Wikipedia matches them reliably
+    wiki_langs = ["en"] if plan.profile else list(dict.fromkeys([plan.lang, "en"]))
+    for lang in wiki_langs if plan.profile != "hazards" else []:
         progress(f"Wikipedia [{lang}]")
         title = _try(c, "Wikipedia", wiki.find_article, plan.search_queries.get(lang, en_q), lang)
         if title:
@@ -83,7 +100,103 @@ def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
         progress(f"Page {url}")
         r = _try(c, "Page monitor", pages.check_page, url)
         c.pages.append(r or {"url": url, "status": "ERROR"})
+    _collect_extras(plan, c, progress)
     return c
+
+
+def _collect_extras(plan: Plan, c: Collected, progress: Progress) -> None:
+    """Special collectors named in the profile ("extras")."""
+    ex = set(plan.extras)
+
+    def series(label: str, fn, *args) -> None:
+        progress(label)
+        got = _try(c, label, fn, *args)
+        for s in (got if isinstance(got, list) else [got] if got else []):
+            if s.values:
+                c.series.append(s)
+
+    if "war_losses" in ex:
+        series("General Staff losses", official.war_losses)
+    if "nbu_fx" in ex:
+        for cur in ("USD", "EUR"):
+            series(f"NBU {cur}", official.nbu_fx, cur)
+    if "nbu_rate" in ex:
+        series("NBU key rate", official.nbu_key_rate)
+    if "nbp_fx" in ex:
+        for cur in ("EUR", "USD", "UAH"):
+            series(f"NBP {cur}", official.nbp_fx, cur)
+    if "eurostat_hicp" in ex:
+        for geo in dict.fromkeys(["EU27_2020", *[g for g in plan.countries if g != "UA"]]):
+            series(f"Eurostat HICP {geo}", official.eurostat_hicp, geo)
+    if "fear_greed" in ex:
+        series("Fear & Greed", crypto.fear_greed)
+    if "defi_tvl" in ex:
+        series("DeFi TVL", crypto.defi_tvl)
+    if "stablecoins" in ex:
+        series("Stablecoins", crypto.stablecoins)
+    if "openalex" in ex:
+        for topic in plan.research_topics:
+            progress(f"OpenAlex: {topic}")
+            trend = _try(c, "OpenAlex", science.openalex_trend, topic)
+            if trend:
+                c.research.append(trend)
+
+    if "gdacs" in ex:
+        progress("GDACS")
+        c.events += _try(c, "GDACS", hazards.gdacs) or []
+    if "earthquakes" in ex:
+        progress("USGS")
+        c.events += _try(c, "USGS", hazards.earthquakes) or []
+    if "eonet" in ex:
+        progress("NASA EONET")
+        c.events += _try(c, "NASA EONET", hazards.eonet) or []
+    if "space_weather" in ex:
+        progress("NOAA SWPC")
+        c.forecasts["kp"] = _try(c, "NOAA SWPC", hazards.kp_forecast) or []
+    for loc in plan.locations:
+        name = loc["name"]
+        if "weather" in ex:
+            progress(f"Open-Meteo: {name}")
+            w = _try(c, "Open-Meteo", hazards.weather, loc["lat"], loc["lon"])
+            if w:
+                c.forecasts.setdefault("weather", {})[name] = w
+        if "floods" in ex and loc.get("river"):
+            progress(f"GloFAS: {loc['river']['name']}")
+            f = _try(c, "GloFAS", hazards.river, loc["river"]["lat"], loc["river"]["lon"])
+            if f:
+                c.forecasts.setdefault("floods", {})[name] = (loc["river"]["name"], f)
+        if "air_quality" in ex:
+            a = _try(c, "CAMS air quality", hazards.air_quality, loc["lat"], loc["lon"])
+            if a:
+                c.forecasts.setdefault("air", {})[name] = a
+
+
+def _hazard_block(c: Collected) -> Dict[str, Any]:
+    if not (c.events or c.forecasts):
+        return {}
+    alerts = hz.event_alerts(c.events)
+    for name, daily in c.forecasts.get("weather", {}).items():
+        alerts += hz.weather_alerts(name, daily)
+    for name, (river_name, daily) in c.forecasts.get("floods", {}).items():
+        alerts += hz.flood_alerts(name, river_name, daily)
+    for name, hourly in c.forecasts.get("air", {}).items():
+        alerts += hz.air_alerts(name, hourly)
+    alerts += hz.kp_alerts(c.forecasts.get("kp", []))
+    return hz.summarize(alerts)
+
+
+def _indicator_rows(series: List[Series]) -> List[Dict[str, Any]]:
+    out = []
+    for s in series:
+        v = s.values
+        base = v[-31] if len(v) > 30 else v[0]
+        row = {"series": s.name, "kind": s.kind, "unit": s.unit, "source": s.source,
+               **timeseries.summarize_series(s.dates, v),
+               "change_30": round(v[-1] / base - 1, 4) if base else None}
+        if s.kind == "war_losses":
+            row["intensity"] = timeseries.regime_chain(v, 30)
+        out.append(row)
+    return out
 
 
 def _macro_block(series: List[Series]) -> List[Dict[str, Any]]:
@@ -103,6 +216,10 @@ def _macro_block(series: List[Series]) -> List[Dict[str, Any]]:
 def analyze(plan: Plan, c: Collected, use_llm: bool = True,
             record_forecasts: bool = True) -> Dict[str, Any]:
     staticity = STATICITY.get(plan.domain, "operational")
+    tiers = profiles.trust_tiers()
+    for a in c.articles:  # news found by search inherits the trust from sources.json
+        if not a.tier:
+            a.tier = tiers.get(a.source.lower(), 0)
     passport = signals.score_articles(c.articles, plan.keywords, staticity)
     relevant = [a for a in c.articles if a.passport["R"] > 0] or c.articles
     methods = signals.method_indices(relevant)
@@ -128,8 +245,14 @@ def analyze(plan: Plan, c: Collected, use_llm: bool = True,
                           **timeseries.summarize_series(s.dates, s.values)})
     volume = next((a for a in attention if a["kind"] == "news_volume"), None)
     tone = next((a for a in attention if a["kind"] == "news_tone"), None)
-    chain_src = (by_kind.get("news_volume") or by_kind.get("attention") or [None])[0]
+    # preferred source of the crisis chain: news coverage, then combat intensity, then attention
+    chain_src = (by_kind.get("news_volume") or by_kind.get("war_losses")
+                 or by_kind.get("attention") or [None])[0]
     crisis = timeseries.regime_chain(chain_src.values, plan.horizon_days) if chain_src else {}
+    if crisis:
+        crisis["series"] = chain_src.name
+    shown = {"price", "macro", "news_volume", "news_tone", "attention"}
+    indicators = _indicator_rows([s for s in c.series if s.kind not in shown])
 
     result: Dict[str, Any] = {
         "plan": plan.to_dict(),
@@ -145,7 +268,10 @@ def analyze(plan: Plan, c: Collected, use_llm: bool = True,
         "correlation": correlation,
         "macro": _macro_block(by_kind.get("macro", [])),
         "attention": attention,
+        "indicators": indicators,
         "crisis_chain": crisis,
+        "hazards": _hazard_block(c),
+        "research": c.research,
         "pages": c.pages,
         "articles": [a.to_dict() for a in c.articles],
         "hypothesis": None,
@@ -184,6 +310,19 @@ def analyze(plan: Plan, c: Collected, use_llm: bool = True,
             f"30d change {m.get('change_30d', 0) * 100:+.1f}%, trend {m.get('trend')}, "
             f"P(higher in {plan.horizon_days}d) {m.get('monte_carlo', {}).get('p_up', 0) * 100:.0f}%"
             for m in market_rows if "error" not in m)
+        if indicators:
+            facts += "\nIndicators:\n" + "\n".join(
+                f"- {i['series']}: last {i.get('last')} {i['unit']}, 30d change "
+                f"{(i.get('change_30') or 0) * 100:+.1f}%, z {i.get('z_last')}" for i in indicators)
+        hzd = result["hazards"]
+        if hzd:
+            facts += f"\nHazard alerts {hzd['by_level']}:\n" + "\n".join(
+                f"- {a['level']} {a['hazard']} {a['location']} {a['date']}: {a['value']}"
+                for a in hzd["alerts"][:15])
+        if c.research:
+            facts += "\nResearch trends:\n" + "\n".join(
+                f"- {r['topic']}: {r['last_full_year']} works, growth {r['growth']}"
+                for r in c.research)
         try:
             result["summary"] = llm.summarize(plan.topic, LANG_NAMES.get(plan.lang, "English"), facts)
         except (FetchError, ValueError) as exc:

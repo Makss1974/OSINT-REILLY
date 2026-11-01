@@ -1,5 +1,6 @@
 """Paths and settings. All paths are relative to the project root."""
 
+import json
 import os
 from pathlib import Path
 
@@ -37,3 +38,19 @@ USER_AGENT = "OSINT-REILLY/5.0 (open-source research tool" + (f"; {CONTACT})" if
 def ensure_dirs() -> None:
     for d in (CACHE_DIR, REPORTS_DIR, PAGES_DIR, LOG_DIR):
         d.mkdir(parents=True, exist_ok=True)
+
+
+SETTINGS_FILE = STATE / "settings.json"
+
+
+def saved_lang() -> str:
+    """Language chosen in the UI, else REILLY_LANG from .env, else English."""
+    try:
+        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8")).get("lang", DEFAULT_LANG)
+    except (OSError, ValueError):
+        return DEFAULT_LANG
+
+
+def save_lang(lang: str) -> None:
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.write_text(json.dumps({"lang": lang}), encoding="utf-8")
