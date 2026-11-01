@@ -33,7 +33,18 @@ def _try(store: Collected, label: str, fn, *args, **kwargs):
         return None
 
 
-def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
+def _dedupe(articles: List[Article]) -> List[Article]:
+    seen, unique = set(), []
+    for a in articles:
+        key = a.url or a.title.lower()
+        if a.title and key not in seen:
+            seen.add(key)
+            unique.append(a)
+    return unique
+
+
+def collect_news(plan: Plan, progress: Progress = lambda s: None) -> Collected:
+    """Search engines only (Google News, GDELT, Bright Data) for the plan queries."""
     c = Collected()
     articles: List[Article] = []
     for lang in plan.search_langs:
@@ -45,13 +56,19 @@ def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
         if brightdata.enabled():
             progress(f"Bright Data SERP [{lang}]")
             articles += _try(c, "Bright Data SERP", brightdata.serp, q, lang) or []
+    c.articles = _dedupe(articles)
+    return c
 
+
+def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
+    c = collect_news(plan, progress)
+    articles: List[Article] = list(c.articles)
     now = time.time()
     for feed in plan.feeds:
         progress(f"RSS: {feed['name']}")
         articles += _try(c, f"RSS {feed['name']}", rss.read_feed, feed,
                          plan.filter_keywords, 14, now) or []
-    if plan.profile == "science_tech":
+    if "arxiv" in plan.extras or "hackernews" in plan.extras:
         for topic in plan.research_topics:
             progress(f"arXiv / Hacker News: {topic}")
             if "arxiv" in plan.extras:
@@ -59,13 +76,7 @@ def collect(plan: Plan, progress: Progress = lambda s: None) -> Collected:
             if "hackernews" in plan.extras:
                 articles += _try(c, "Hacker News", science.hackernews, topic, 10) or []
 
-    seen, unique = set(), []
-    for a in articles:
-        key = a.url or a.title.lower()
-        if a.title and key not in seen:
-            seen.add(key)
-            unique.append(a)
-    c.articles = unique
+    c.articles = _dedupe(articles)
 
     en_q = plan.search_queries.get("en", plan.topic)
     progress("GDELT timelines")

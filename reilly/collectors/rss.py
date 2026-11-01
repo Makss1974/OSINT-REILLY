@@ -89,3 +89,47 @@ def read_feed(feed: Dict[str, Any], keywords: List[str], max_age_days: float = 1
     if now:
         items = [a for a in items if not a.published or now - a.published <= max_age_days * 86400]
     return items
+
+
+_ALT = re.compile(r"<link\b[^>]*>", re.I)
+COMMON_PATHS = ("/feed", "/rss", "/rss.xml", "/feed.xml", "/atom.xml", "/index.xml",
+                "/feed/rss", "/rss/all")
+
+
+def feed_title(xml_text: str) -> str:
+    root = ET.fromstring(_DECL.sub("", xml_text.lstrip("﻿ \r\n\t"), count=1))
+    channel = _child(root, "channel")
+    return _clean(_text(channel if channel is not None else root, "title"), 80)
+
+
+def discover(url: str) -> Dict[str, Any]:
+    """Site or feed address -> {url, title, items}. Raises ValueError if no feed found."""
+    from urllib.parse import urljoin, urlparse
+
+    url = url.strip()
+    if not urlparse(url).scheme:
+        url = "https://" + url
+    candidates = [url]
+    try:
+        page = get_text(url, ttl=3600)
+    except Exception:  # noqa: BLE001 - the address itself may be a dead page; try the usual paths
+        page = ""
+    if page and not re.search(r"<(rss|feed|rdf:RDF)\b", page[:2000], re.I):
+        for tag in _ALT.findall(page):
+            if re.search(r"rel=[\"']?alternate", tag, re.I) and \
+                    re.search(r"(rss|atom)\+xml", tag, re.I):
+                href = re.search(r"href=[\"']([^\"']+)", tag, re.I)
+                if href:
+                    candidates.append(urljoin(url, html.unescape(href.group(1))))
+        root = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+        candidates += [root + p for p in COMMON_PATHS]
+    for cand in dict.fromkeys(candidates):
+        try:
+            body = page if cand == url and page else get_text(cand, ttl=3600)
+            items = parse(body, {"name": "test"})
+        except Exception:  # noqa: BLE001 - not a feed, try the next candidate
+            continue
+        if items:
+            return {"url": cand, "title": feed_title(body), "items": len(items),
+                    "sample": [a.title for a in items[:3]]}
+    raise ValueError("no RSS/Atom feed found")

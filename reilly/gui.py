@@ -16,10 +16,10 @@ import tkinter as tk
 from tkinter import font as tkfont, messagebox, ttk
 from typing import Any, Dict, List, Tuple
 
-from . import config, journal, pipeline, planner, profiles, report
+from . import agent, config, journal, llm, pipeline, planner, profiles, report
 from .i18n import LANG_NAMES, LANGS, Translator
 
-Job = Tuple[str, Any]          # ("profile", pid) or ("custom", spec dict)
+Job = Tuple[str, Any]          # ("profile", pid), ("custom", spec) or ("task", {task, horizon})
 
 
 def _split(value: str) -> list:
@@ -45,6 +45,8 @@ class App:
             ("topic", ""), ("assets", ""), ("countries", ""), ("langs", ""), ("hypothesis", ""),
             ("prior", "0.5"), ("horizon", "30"), ("polarity", "risk"), ("direction", "auto"))}
         self.use_llm = tk.BooleanVar(value=True)
+        self.task_value = ""
+        self.task_horizon = tk.StringVar(value="30")
         self.log_lines: List[str] = []
         w, h = min(1400, root.winfo_screenwidth() - 40), min(860, root.winfo_screenheight() - 80)
         root.geometry(f"{w}x{h}+10+10")
@@ -60,6 +62,8 @@ class App:
     # ---------- layout ----------
     def build(self) -> None:
         t = self.t
+        if getattr(self, "task_box", None) is not None and self.task_box.winfo_exists():
+            self.task_value = self.task_box.get("1.0", "end").strip()
         for w in self.root.winfo_children():
             w.destroy()
         self.root.title(t("title"))
@@ -72,9 +76,10 @@ class App:
         self.lang_box.set(LANG_NAMES[t.lang])
         self.lang_box.bind("<<ComboboxSelected>>", self.change_lang)
         self.lang_box.pack(side="left", padx=(4, 16))
-        ttk.Button(top, text=t("run_selected"), command=self.run_selected).pack(side="left", padx=2)
         ttk.Button(top, text=t("run_all"), command=self.run_all).pack(side="left", padx=2)
         ttk.Checkbutton(top, text="LLM", variable=self.use_llm).pack(side="left", padx=10)
+        ttk.Button(top, text="⚙ " + t("settings"), command=self.open_settings).pack(
+            side="right", padx=2)
         ttk.Button(top, text=t("open_reports"),
                    command=lambda: open_path(config.REPORTS_DIR)).pack(side="right", padx=2)
         ttk.Button(top, text=t("journal"), command=self.open_journal).pack(side="right", padx=2)
@@ -88,13 +93,32 @@ class App:
         right = ttk.Frame(body)
         body.add(right, weight=1)
 
-        box = ttk.LabelFrame(left, text=t("profiles"), padding=6)
-        box.pack(fill="x")
+        modes = ttk.Notebook(left)
+        modes.pack(fill="both", expand=True)
+        box = ttk.Frame(modes, padding=8)
+        modes.add(box, text=t("profiles"))
         for pid, var in self.checks.items():
-            ttk.Checkbutton(box, text=t("p_" + pid), variable=var).pack(anchor="w", pady=1)
+            ttk.Checkbutton(box, text=t("p_" + pid), variable=var).pack(anchor="w", pady=2)
+        ttk.Button(box, text=t("run_selected"), command=self.run_selected).pack(
+            fill="x", pady=(10, 2))
 
-        form = ttk.LabelFrame(left, text=t("custom"), padding=6)
-        form.pack(fill="x", pady=(8, 0))
+        task = ttk.Frame(modes, padding=8)
+        modes.add(task, text=t("task"))
+        ttk.Label(task, text=t("task_hint"), wraplength=330, justify="left").pack(anchor="w")
+        self.task_box = tk.Text(task, height=9, width=40, wrap="word", font=("Segoe UI", 10))
+        self.task_box.pack(fill="both", expand=True, pady=6)
+        self.task_box.insert("1.0", self.task_value)
+        row = ttk.Frame(task)
+        row.pack(fill="x")
+        ttk.Label(row, text=t("horizon_prompt").split(" (")[0]).pack(side="left")
+        ttk.Entry(row, textvariable=self.task_horizon, width=5).pack(side="left", padx=4)
+        ttk.Button(task, text=t("run_task"), command=self.run_task).pack(fill="x", pady=(6, 4))
+        if not llm.enabled():
+            ttk.Label(task, text=t("agent_no_llm"), foreground="#a15c00", wraplength=330,
+                      justify="left").pack(anchor="w")
+
+        form = ttk.Frame(modes, padding=8)
+        modes.add(form, text=t("custom"))
         fields = [("topic", t("topic_prompt").split(" / ")[0]),
                   ("assets", t("assets_prompt").split(" (")[0]),
                   ("countries", t("countries_prompt").split(" (")[0]),
@@ -274,6 +298,20 @@ class App:
                                 "asset_direction": f["direction"], "prior": prior,
                                 "horizon": horizon})])
 
+    def run_task(self) -> None:
+        text = self.task_box.get("1.0", "end").strip()
+        if len(text) < 5:
+            return
+        try:
+            horizon = int(self.task_horizon.get() or 30)
+        except ValueError:
+            horizon = 30
+        self.start([("task", {"task": text, "horizon": horizon})])
+
+    def open_settings(self) -> None:
+        from .gui_settings import open_settings
+        open_settings(self)
+
     def start(self, jobs: List[Job]) -> None:
         if not jobs:
             return
@@ -289,8 +327,17 @@ class App:
     def work(self, jobs: List[Job], t: Translator, use_llm: bool) -> None:
         """Background thread: never touches widgets, only the queue."""
         for kind, arg in jobs:
-            name = t("p_" + arg) if kind == "profile" else arg["topic"]
+            name = t("p_" + arg) if kind == "profile" else arg.get("topic") or arg["task"][:40]
+            progress = lambda m, n=name: self.queue.put(("status", f"{n}: {m}"))  # noqa: E731
             try:
+                if kind == "task":
+                    self.queue.put(("log", f"▶ {t('task')}: {name}"))
+                    result = agent.run_task(arg["task"], t.lang, arg["horizon"], use_llm,
+                                            progress=progress)
+                    paths = report.save(result, t)
+                    self.queue.put(("result", name, result,
+                                    str(paths["html"].relative_to(config.ROOT))))
+                    continue
                 if kind == "profile":
                     plan = profiles.build_plan(arg, t.lang)
                 else:
@@ -302,8 +349,7 @@ class App:
                                          prior=arg["prior"], horizon_days=arg["horizon"],
                                          translate=use_llm)
                 self.queue.put(("log", f"▶ {name}"))
-                collected = pipeline.collect(plan, lambda m, n=name: self.queue.put(
-                    ("status", f"{n}: {m}")))
+                collected = pipeline.collect(plan, progress)
                 result = pipeline.analyze(plan, collected, use_llm=use_llm)
                 paths = report.save(result, t)
                 self.queue.put(("result", name, result,
@@ -335,7 +381,7 @@ class App:
                     self.progress.stop()
                     self.progress["value"] = 0
                     self.status.configure(text=self.t("finished"))
-                elif msg[0] == "journal":
+                elif msg[0] == "call":
                     msg[1]()
         except queue.Empty:
             pass
@@ -392,7 +438,7 @@ class App:
             try:
                 journal.auto_resolve()
             finally:
-                self.queue.put(("journal", lambda: win.winfo_exists() and refresh()))
+                self.queue.put(("call", lambda: win.winfo_exists() and refresh()))
 
         threading.Thread(target=auto, daemon=True).start()
 

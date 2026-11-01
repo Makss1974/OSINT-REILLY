@@ -2,6 +2,8 @@
 Both files live in the project root and are meant to be edited by hand."""
 
 import json
+import re
+from urllib.parse import urlparse
 from typing import Any, Dict, List
 
 from . import config, planner
@@ -18,6 +20,43 @@ def _load(path) -> Dict[str, Any]:
 
 def load_profiles() -> Dict[str, Any]:
     return _load(PROFILES_FILE)
+
+
+def all_feeds() -> Dict[str, Dict[str, Any]]:
+    """Every feed in sources.json, switched off ones included."""
+    return _load(SOURCES_FILE)["feeds"]
+
+
+def save_feeds(feeds: Dict[str, Dict[str, Any]]) -> None:
+    """Write sources.json keeping one feed per line, easy to edit by hand."""
+    data = _load(SOURCES_FILE)
+    lines = [f"    {json.dumps(fid)}: {json.dumps(f, ensure_ascii=False)}"
+             for fid, f in feeds.items()]
+    head = json.dumps(data.get("_help", ""), ensure_ascii=False)
+    SOURCES_FILE.write_text('{\n  "_help": ' + head + ',\n  "feeds": {\n' +
+                            ",\n".join(lines) + "\n  }\n}\n", encoding="utf-8")
+
+
+def add_feed(name: str, url: str, lang: str, tier: int, tags: List[str],
+             focused: bool = False) -> str:
+    feeds = all_feeds()
+    host = urlparse(url).netloc.lower().removeprefix("www.").split(".")[0]
+    base = (re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+            or re.sub(r"[^a-z0-9]+", "_", host).strip("_") or "feed")
+    fid, n = base, 2
+    while fid in feeds:
+        fid, n = f"{base}_{n}", n + 1
+    feeds[fid] = {"name": name, "url": url, "lang": lang, "tier": int(tier), "tags": tags}
+    if focused:
+        feeds[fid]["focused"] = True
+    save_feeds(feeds)
+    return fid
+
+
+def profile_tags() -> Dict[str, str]:
+    """Profile id -> its main feed tag (adding a feed to a profile = giving it this tag)."""
+    return {pid: p["feed_tags"][0] for pid, p in load_profiles()["profiles"].items()
+            if p.get("feed_tags")}
 
 
 def load_feeds() -> Dict[str, Dict[str, Any]]:

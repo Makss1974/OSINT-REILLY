@@ -4,6 +4,7 @@
   python main.py                         desktop window (tkinter)
   python main.py console                 interactive console menu
   python main.py profile [ids]           standing profiles (empty = all)
+  python main.py task "..."              agent: picks sources and analyses a task
   python main.py run "topic" [options]   one analysis
   python main.py topics topics.json      batch of topics
   python main.py journal                 forecast journal and scores
@@ -19,7 +20,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from reilly import config, journal, pipeline, planner, profiles, report
+from reilly import agent, config, journal, pipeline, planner, profiles, report
 from reilly.i18n import LANG_NAMES, LANGS, Translator
 
 console = Console()
@@ -165,6 +166,11 @@ def main() -> None:
     r.add_argument("--horizon", type=int, default=30, help="days")
     r.add_argument("--no-llm", action="store_true")
     r.add_argument("--no-journal", action="store_true", help="do not record forecasts")
+    tk_ = sub.add_parser("task", help="agent: picks sources, searches, analyses a task")
+    tk_.add_argument("text")
+    tk_.add_argument("--horizon", type=int, default=30)
+    tk_.add_argument("--no-llm", action="store_true")
+    tk_.add_argument("--no-journal", action="store_true")
     pr = sub.add_parser("profile", help="run standing profiles from profiles.json")
     pr.add_argument("ids", nargs="*", help="profile ids (empty = all): " +
                     ", ".join(profiles.profile_ids()))
@@ -189,6 +195,15 @@ def main() -> None:
                  "polarity": args.polarity, "asset_direction": args.asset_direction,
                  "prior": args.prior, "horizon": args.horizon},
                 t, use_llm=not args.no_llm, record=not args.no_journal)
+    elif args.cmd == "task":
+        with console.status(t("collecting")) as status:
+            result = agent.run_task(args.text, t.lang, args.horizon, not args.no_llm,
+                                    record=not args.no_journal,
+                                    progress=lambda m: status.update(f"{t('collecting')}: {m}"))
+        show(result, t)
+        paths = report.save(result, t)
+        console.print(f"[green]{t('saved')}:[/green] " + "  ".join(
+            str(p.relative_to(config.ROOT)) for p in paths.values()))
     elif args.cmd == "profile":
         for pid in args.ids or profiles.profile_ids():
             run_profile(pid, t, use_llm=not args.no_llm, record=not args.no_journal,

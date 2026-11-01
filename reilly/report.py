@@ -36,6 +36,18 @@ def sections(r: Dict[str, Any], t: Translator, full: bool = False) -> List[Dict[
         [t("errors"), "; ".join(r["errors"]) or "—"],
     ]})
 
+    ag = r.get("agent")
+    if ag:
+        rows = [[t("a_reason"), ag.get("reason") or "—"],
+                [t("a_feeds"), ", ".join(ag.get("feed_tags", [])) or "—"],
+                [t("a_extras"), ", ".join(ag.get("extras", [])) or "—"],
+                [t("a_gap"), ag.get("gap") or "—"],
+                [t("a_round2"), "; ".join(f"{k}: {v}" for k, v in ag.get("round2", {}).items())
+                 or "—"]]
+        if ag.get("note"):
+            rows.append([t("a_note"), ag["note"]])
+        out.append({"key": "agent", "title": t("agent_steps"), "columns": ["", ""], "rows": rows})
+
     shown = r["stories"][:40 if full else 12]
     out.append({"key": "stories",
                 "title": f"{t('stories')} — {r['counts']['articles']} / {r['n_stories']}",

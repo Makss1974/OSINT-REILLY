@@ -17,19 +17,18 @@
     "mezha": {"name": "Mezha", "url": "https://mezha.media/feed/", "lang": "uk", "tier": 2, "tags": ["tech"], "focused": true},
     "dev_ua": {"name": "dev.ua", "url": "https://dev.ua/rss", "lang": "uk", "tier": 2, "tags": ["tech"], "focused": true},
     "forklog_ua": {"name": "ForkLog UA", "url": "https://forklog.com.ua/feed/", "lang": "uk", "tier": 2, "tags": ["crypto"], "focused": true},
-
     "notes_from_poland": {"name": "Notes from Poland", "url": "https://notesfrompoland.com/feed/", "lang": "en", "tier": 1, "tags": ["poland"], "focused": true},
     "tvn24": {"name": "TVN24", "url": "https://tvn24.pl/najnowsze.xml", "lang": "pl", "tier": 1, "tags": ["poland", "hazards"]},
     "rzeczpospolita": {"name": "Rzeczpospolita", "url": "https://www.rp.pl/rss_main", "lang": "pl", "tier": 1, "tags": ["poland", "economy"]},
     "bankier": {"name": "Bankier.pl", "url": "https://www.bankier.pl/rss/wiadomosci.xml", "lang": "pl", "tier": 2, "tags": ["economy", "poland"], "focused": true},
-
     "ec_press": {"name": "European Commission", "url": "https://ec.europa.eu/commission/presscorner/api/rss?language=en", "lang": "en", "tier": 1, "tags": ["eu"], "focused": true},
     "politico_eu": {"name": "Politico Europe", "url": "https://www.politico.eu/feed/", "lang": "en", "tier": 1, "tags": ["eu"], "focused": true},
     "euronews": {"name": "Euronews", "url": "https://www.euronews.com/rss", "lang": "en", "tier": 2, "tags": ["eu", "hazards"]},
     "dw": {"name": "DW", "url": "https://rss.dw.com/rdf/rss-en-all", "lang": "en", "tier": 1, "tags": ["eu", "war", "economy", "hazards"]},
-
     "coindesk": {"name": "CoinDesk", "url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "lang": "en", "tier": 2, "tags": ["crypto"], "focused": true},
     "cointelegraph": {"name": "Cointelegraph", "url": "https://cointelegraph.com/rss", "lang": "en", "tier": 2, "tags": ["crypto"], "focused": true},
-    "nature": {"name": "Nature", "url": "https://www.nature.com/nature.rss", "lang": "en", "tier": 1, "tags": ["science"], "focused": true}
+    "nature": {"name": "Nature", "url": "https://www.nature.com/nature.rss", "lang": "en", "tier": 1, "tags": ["science"], "focused": true},
+    "babel": {"name": "Бабель", "url": "https://babel.ua/rss.xml", "lang": "uk", "tier": 1, "tags": ["war", "ua_politics", "economy"]},
+    "texty": {"name": "Тексти", "url": "https://texty.org.ua/feed.xml", "lang": "uk", "tier": 1, "tags": ["ua_politics", "war"], "focused": true}
   }
 }
