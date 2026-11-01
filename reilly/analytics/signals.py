@@ -108,7 +108,16 @@ def score_articles(articles: List[Article], keywords: List[str],
     stories = []
     for g_id, members in enumerate(groups):
         best = max(members, key=lambda i: articles[i].passport["weight"])
+        # one link per outlet, strongest first: lets the reader compare versions of a story
+        ranked = sorted(members, key=lambda i: -articles[i].passport["weight"])
+        outlets, seen = [], set()
+        for i in ranked:
+            key = source_key(articles[i])
+            if key not in seen:
+                seen.add(key)
+                outlets.append({"source": articles[i].source or key, "url": articles[i].url})
         stories.append({
+            "members": outlets[:6],
             "title": articles[best].title,
             "url": articles[best].url,
             "sources": len(story_sources[g_id]),

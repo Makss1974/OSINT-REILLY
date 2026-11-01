@@ -56,6 +56,21 @@ def sections(r: Dict[str, Any], t: Translator, full: bool = False) -> List[Dict[
                           num(s["sentiment"]), num(s["weight"], 3)] for s in shown],
                 "links": [s["url"] for s in shown]})
 
+    rd = r.get("reading") or {}
+    if rd:
+        claims = rd["claims"][:60 if full else 24]
+        out.append({"key": "reading",
+                    "title": f"{t('reading')} — {rd['read']} {t('articles_read')}"
+                             + ("" if rd.get("llm") else f" ({t('reading_no_llm')})"),
+                    "columns": [t("story"), t("source"), t("statement")],
+                    "rows": [[c["story"][:70], c["source"], c["text"]] for c in claims],
+                    "links": [c.get("url", "") for c in claims]})
+        if rd.get("conflicts"):
+            out.append({"key": "conflicts", "title": f"⚠ {t('conflicts')}",
+                        "columns": [t("story"), t("point"), t("versions")],
+                        "rows": [[c["story"][:70], c["point"], " | ".join(c["versions"])]
+                                 for c in rd["conflicts"]]})
+
     m = r["methods"]
     if m:
         rows = [[t("m_sentiment"), num(m["weighted_sentiment"], 3)],

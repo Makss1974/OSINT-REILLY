@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any, Callable, Dict, List, Tuple
 
-from . import llm, pipeline, planner, profiles, report
+from . import llm, pipeline, planner, profiles, reading, report
 from .analytics import text as tx
 from .http import FetchError
 from .i18n import LANG_NAMES, LANGS, Translator
@@ -217,7 +217,8 @@ def brief(task: str, result: Dict[str, Any], t: Translator) -> str:
 
 
 def run_task(task: str, lang: str, horizon: int = 30, use_llm: bool = True,
-             record: bool = True, progress: Progress = lambda s: None) -> Dict[str, Any]:
+             record: bool = True, progress: Progress = lambda s: None,
+             read_full: bool = True) -> Dict[str, Any]:
     t = Translator(lang)
     plan, spec = plan_task(task, lang, horizon, use_llm, progress)
     collected = pipeline.collect(plan, progress)
@@ -249,6 +250,10 @@ def run_task(task: str, lang: str, horizon: int = 30, use_llm: bool = True,
 
     result = pipeline.analyze(plan, collected, use_llm=False, record_forecasts=record)
     result["agent"] = agent
+    if read_full:
+        result["reading"] = reading.read_stories(result["stories"], lang, use_llm, progress)
+        if result["reading"]["note"]:
+            result["errors"].append(result["reading"]["note"])
     if agent["llm"]:
         progress("LLM: analysis")
         try:

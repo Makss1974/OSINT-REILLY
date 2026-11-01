@@ -24,6 +24,7 @@ from reilly import agent, config, journal, pipeline, planner, profiles, report
 from reilly.i18n import LANG_NAMES, LANGS, Translator
 
 console = Console()
+READ_FULL = [True]  # --no-read switches off reading of full articles
 def split(value: str) -> list:
     return [x.strip() for x in (value or "").split(",") if x.strip()]
 
@@ -59,7 +60,8 @@ def run_one(spec: dict, t: Translator, use_llm: bool = True, record: bool = True
         return
     with console.status(t("collecting")) as status:
         collected = pipeline.collect(plan, lambda msg: status.update(f"{t('collecting')}: {msg}"))
-        result = pipeline.analyze(plan, collected, use_llm=use_llm, record_forecasts=record)
+        result = pipeline.finish(plan, collected, use_llm, record, READ_FULL[0],
+                                 lambda m: status.update(f"{t('collecting')}: {m}"))
     show(result, t)
     paths = report.save(result, t)
     console.print(f"[green]{t('saved')}:[/green] " + "  ".join(str(p.relative_to(config.ROOT))
@@ -72,7 +74,8 @@ def run_profile(pid: str, t: Translator, use_llm: bool = True, record: bool = Tr
     console.rule(f"[bold]{escape(t('p_' + pid))}[/bold]")
     with console.status(t("collecting")) as status:
         collected = pipeline.collect(plan, lambda msg: status.update(f"{t('collecting')}: {msg}"))
-        result = pipeline.analyze(plan, collected, use_llm=use_llm, record_forecasts=record)
+        result = pipeline.finish(plan, collected, use_llm, record, READ_FULL[0],
+                                 lambda m: status.update(f"{t('collecting')}: {m}"))
     show(result, t)
     paths = report.save(result, t)
     console.print(f"[green]{t('saved')}:[/green] " + "  ".join(str(p.relative_to(config.ROOT))
@@ -151,6 +154,8 @@ def main() -> None:
                         encoding="utf-8")
     ap = argparse.ArgumentParser(description="OSINT-REILLY v5")
     ap.add_argument("--lang", choices=LANGS, help="interface / report language")
+    ap.add_argument("--no-read", action="store_true",
+                    help="do not read full texts of the top stories")
     sub = ap.add_subparsers(dest="cmd")
     r = sub.add_parser("run", help="analyse one topic")
     r.add_argument("topic")
@@ -188,6 +193,7 @@ def main() -> None:
     args = ap.parse_args()
 
     t = Translator(args.lang or config.saved_lang())
+    READ_FULL[0] = not args.no_read
     if args.cmd == "run":
         run_one({"topic": args.topic, "assets": split(args.assets) or None,
                  "countries": split(args.countries) or None, "urls": split(args.urls),
@@ -198,7 +204,7 @@ def main() -> None:
     elif args.cmd == "task":
         with console.status(t("collecting")) as status:
             result = agent.run_task(args.text, t.lang, args.horizon, not args.no_llm,
-                                    record=not args.no_journal,
+                                    record=not args.no_journal, read_full=READ_FULL[0],
                                     progress=lambda m: status.update(f"{t('collecting')}: {m}"))
         show(result, t)
         paths = report.save(result, t)

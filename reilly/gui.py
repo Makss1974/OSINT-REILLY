@@ -45,6 +45,7 @@ class App:
             ("topic", ""), ("assets", ""), ("countries", ""), ("langs", ""), ("hypothesis", ""),
             ("prior", "0.5"), ("horizon", "30"), ("polarity", "risk"), ("direction", "auto"))}
         self.use_llm = tk.BooleanVar(value=True)
+        self.read_full = tk.BooleanVar(value=True)
         self.task_value = ""
         self.task_horizon = tk.StringVar(value="30")
         self.log_lines: List[str] = []
@@ -78,6 +79,7 @@ class App:
         self.lang_box.pack(side="left", padx=(4, 16))
         ttk.Button(top, text=t("run_all"), command=self.run_all).pack(side="left", padx=2)
         ttk.Checkbutton(top, text="LLM", variable=self.use_llm).pack(side="left", padx=10)
+        ttk.Checkbutton(top, text=t("read_full"), variable=self.read_full).pack(side="left")
         ttk.Button(top, text="⚙ " + t("settings"), command=self.open_settings).pack(
             side="right", padx=2)
         ttk.Button(top, text=t("open_reports"),
@@ -320,11 +322,12 @@ class App:
             return
         self.progress.start(12)
         self.status.configure(text=self.t("running") + "…")
-        self.worker = threading.Thread(target=self.work, args=(jobs, self.t, self.use_llm.get()),
+        self.worker = threading.Thread(target=self.work, args=(jobs, self.t, self.use_llm.get(),
+                                                               self.read_full.get()),
                                        daemon=True)
         self.worker.start()
 
-    def work(self, jobs: List[Job], t: Translator, use_llm: bool) -> None:
+    def work(self, jobs: List[Job], t: Translator, use_llm: bool, read_full: bool) -> None:
         """Background thread: never touches widgets, only the queue."""
         for kind, arg in jobs:
             name = t("p_" + arg) if kind == "profile" else arg.get("topic") or arg["task"][:40]
@@ -333,7 +336,7 @@ class App:
                 if kind == "task":
                     self.queue.put(("log", f"▶ {t('task')}: {name}"))
                     result = agent.run_task(arg["task"], t.lang, arg["horizon"], use_llm,
-                                            progress=progress)
+                                            progress=progress, read_full=read_full)
                     paths = report.save(result, t)
                     self.queue.put(("result", name, result,
                                     str(paths["html"].relative_to(config.ROOT))))
@@ -350,7 +353,7 @@ class App:
                                          translate=use_llm)
                 self.queue.put(("log", f"▶ {name}"))
                 collected = pipeline.collect(plan, progress)
-                result = pipeline.analyze(plan, collected, use_llm=use_llm)
+                result = pipeline.finish(plan, collected, use_llm, True, read_full, progress)
                 paths = report.save(result, t)
                 self.queue.put(("result", name, result,
                                 str(paths["html"].relative_to(config.ROOT))))

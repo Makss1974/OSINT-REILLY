@@ -112,6 +112,9 @@ def get_text(
             last_error = str(exc)
         else:
             if resp.status_code == 200:
+                ctype = resp.headers.get("Content-Type", "").lower()
+                if "html" in ctype and "charset" not in ctype:
+                    resp.encoding = resp.apparent_encoding  # else Cyrillic pages turn to mojibake
                 _cache_put(key, resp.text, resp.status_code)
                 return resp.text
             last_error = f"HTTP {resp.status_code}: {resp.text[:120]}"

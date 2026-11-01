@@ -5,7 +5,7 @@ import logging
 import time
 from typing import Any, Callable, Dict, List
 
-from . import journal, llm, profiles
+from . import journal, llm, profiles, reading
 from .analytics import hazards as hz
 from .analytics import logic, market, signals, timeseries
 from .collectors import (brightdata, crypto, hazards, macro, markets, news, official, pages,
@@ -310,32 +310,59 @@ def analyze(plan: Plan, c: Collected, use_llm: bool = True,
                                  plan.horizon_days, query_id=plan.query_id)
             result["forecast_ids"].append(fid)
 
-    if use_llm and llm.enabled():
-        facts = json.dumps({k: result[k] for k in ("methods", "jervis", "crisis_chain",
-                                                   "hypothesis", "macro")},
-                           ensure_ascii=False, default=str)[:6000]
-        facts += "\nTop stories:\n" + "\n".join(
-            f"- {s['title']} (sources {s['sources']}, T={s['truth']})" for s in result["stories"][:8])
-        facts += "\nMarkets:\n" + "\n".join(
-            f"- {m['asset']}: last {m.get('last')} {m.get('currency', '')}, "
-            f"30d change {m.get('change_30d', 0) * 100:+.1f}%, trend {m.get('trend')}, "
-            f"P(higher in {plan.horizon_days}d) {m.get('monte_carlo', {}).get('p_up', 0) * 100:.0f}%"
-            for m in market_rows if "error" not in m)
-        if indicators:
-            facts += "\nIndicators:\n" + "\n".join(
-                f"- {i['series']}: last {i.get('last')} {i['unit']}, 30d change "
-                f"{(i.get('change_30') or 0) * 100:+.1f}%, z {i.get('z_last')}" for i in indicators)
-        hzd = result["hazards"]
-        if hzd:
-            facts += f"\nHazard alerts {hzd['by_level']}:\n" + "\n".join(
-                f"- {a['level']} {a['hazard']} {a['location']} {a['date']}: {a['value']}"
-                for a in hzd["alerts"][:15])
-        if c.research:
-            facts += "\nResearch trends:\n" + "\n".join(
-                f"- {r['topic']}: {r['last_full_year']} works, growth {r['growth']}"
-                for r in c.research)
-        try:
-            result["summary"] = llm.summarize(plan.topic, LANG_NAMES.get(plan.lang, "English"), facts)
-        except (FetchError, ValueError) as exc:
-            result["errors"].append(f"LLM: {str(exc)[:160]}")
+    if use_llm:
+        write_summary(plan, result)
+    return result
+
+
+def write_summary(plan: Plan, result: Dict[str, Any]) -> None:
+    """LLM assessment of the computed results (numbers never come from the model)."""
+    if not llm.enabled():
+        return
+    facts = json.dumps({k: result[k] for k in ("methods", "jervis", "crisis_chain",
+                                               "hypothesis", "macro")},
+                       ensure_ascii=False, default=str)[:6000]
+    facts += "\nTop stories:\n" + "\n".join(
+        f"- {s['title']} (sources {s['sources']}, T={s['truth']})" for s in result["stories"][:8])
+    facts += "\nMarkets:\n" + "\n".join(
+        f"- {m['asset']}: last {m.get('last')} {m.get('currency', '')}, "
+        f"30d change {m.get('change_30d', 0) * 100:+.1f}%, trend {m.get('trend')}, "
+        f"P(higher in {plan.horizon_days}d) {m.get('monte_carlo', {}).get('p_up', 0) * 100:.0f}%"
+        for m in result["markets"] if "error" not in m)
+    if result["indicators"]:
+        facts += "\nIndicators:\n" + "\n".join(
+            f"- {i['series']}: last {i.get('last')} {i['unit']}, 30d change "
+            f"{(i.get('change_30') or 0) * 100:+.1f}%, z {i.get('z_last')}" for i in result["indicators"])
+    hzd = result["hazards"]
+    if hzd:
+        facts += f"\nHazard alerts {hzd['by_level']}:\n" + "\n".join(
+            f"- {a['level']} {a['hazard']} {a['location']} {a['date']}: {a['value']}"
+            for a in hzd["alerts"][:15])
+    if result["research"]:
+        facts += "\nResearch trends:\n" + "\n".join(
+            f"- {r['topic']}: {r['last_full_year']} works, growth {r['growth']}"
+            for r in result["research"])
+    rd = result.get("reading") or {}
+    if rd.get("claims"):
+        facts += "\nStatements from full articles:\n" + "\n".join(
+            f"- [{c['source']}] {c['text']}" for c in rd["claims"][:20])
+    if rd.get("conflicts"):
+        facts += "\nContradictions between outlets:\n" + "\n".join(
+            f"- {c['point']}: " + " / ".join(c["versions"]) for c in rd["conflicts"])
+    try:
+        result["summary"] = llm.summarize(plan.topic, LANG_NAMES.get(plan.lang, "English"), facts)
+    except (FetchError, ValueError) as exc:
+        result["errors"].append(f"LLM: {str(exc)[:160]}")
+
+
+def finish(plan: Plan, c: Collected, use_llm: bool = True, record_forecasts: bool = True,
+           read_full: bool = True, progress: Progress = lambda s: None) -> Dict[str, Any]:
+    """Analysis, then full texts of the top stories, then the written assessment."""
+    result = analyze(plan, c, use_llm=False, record_forecasts=record_forecasts)
+    if read_full:
+        result["reading"] = reading.read_stories(result["stories"], plan.lang, use_llm, progress)
+        if result["reading"]["note"]:
+            result["errors"].append(result["reading"]["note"])
+    if use_llm:
+        write_summary(plan, result)
     return result
