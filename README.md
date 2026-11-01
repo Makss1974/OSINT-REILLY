@@ -44,6 +44,10 @@ copy .env.example .env
 
 ## Запуск
 
+Найкоротше: `reilly.bat` (подвійний клік — вікно; `reilly.bat profile war_ua` — консоль).
+Щоб запускати командою `reilly` з будь-якої теки PowerShell, додайте в `$PROFILE`:
+`function reilly { & "<шлях до проєкту>eilly.bat" @args }`.
+
 ```bash
 .venv\Scripts\python main.py
 ```
